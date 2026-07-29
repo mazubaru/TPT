@@ -1,488 +1,560 @@
-import React, { useState } from 'react';
-import { 
-  Settings, FileText, ShoppingCart, Download, 
-  Wand2, Printer, CheckCircle, AlertCircle, Image as ImageIcon, Copy
-} from 'lucide-react';
+# app.py - โครงสร้างหลัก
+import streamlit as st
+import google.generativeai as genai
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.pdfgen import canvas
+from PIL import Image, ImageDraw, ImageFont
+import json
+import os
+from datetime import datetime
+import io
 
-export default function App() {
-  const [apiKey, setApiKey] = useState('');
-  const [topic, setTopic] = useState('Spring Season Math');
-  const [grade, setGrade] = useState('1st Grade');
-  const [subject, setSubject] = useState('Math');
-  const [numPages, setNumPages] = useState(2);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('content');
-  const [productData, setProductData] = useState(null);
+# ตั้งค่าหน้าเว็บ
+st.set_page_config(
+    page_title="TPT Worksheet Generator",
+    page_icon="📚",
+    layout="wide"
+)
 
-  const generateTPTProduct = async () => {
-    if (!apiKey) {
-      setError('กรุณาใส่ Gemini API Key ก่อนครับ');
-      return;
+# Sidebar - การตั้งค่า
+with st.sidebar:
+    st.title("⚙️ Settings")
+    
+    gemini_api_key = st.text_input("Gemini API Key", type="password")
+    
+    st.divider()
+    
+    # เลือกประเภทใบงาน
+    worksheet_type = st.selectbox(
+        "Worksheet Type",
+        ["Math Practice", "Reading Comprehension", "Phonics", 
+         "Sight Words", "Word Search", "Sudoku", "Tracing",
+         "Multiple Choice", "Fill in the Blank", "Matching"]
+    )
+    
+    grade_level = st.selectbox(
+        "Grade Level",
+        ["Pre-K", "Kindergarten", "1st Grade", "2nd Grade", 
+         "3rd Grade", "4th Grade", "5th Grade", "Special Education"]
+    )
+    
+    difficulty = st.select_slider(
+        "Difficulty",
+        options=["Beginner", "Easy", "Grade Level", "Challenging", "Advanced"],
+        value=2
+    )
+    
+    num_pages = st.number_input("Number of Pages", min_value=1, max_value=50, value=10)
+    
+    theme = st.selectbox(
+        "Theme",
+        ["Clean Classroom", "Minimal B&W", "Soft Pastel", "Bright Elementary",
+         "Space", "Ocean", "Farm", "Dinosaur", "Seasonal"]
+    )
+    
+    paper_size = st.radio("Paper Size", ["US Letter", "A4"])
+    
+    include_answer_key = st.checkbox("Include Answer Key", value=True)
+    
+    st.divider()
+    
+    if st.button("🎯 Generate Opportunity Score", type="primary"):
+        # คำนวณโอกาสทางการตลาด
+        score = calculate_opportunity_score(worksheet_type, grade_level)
+        st.metric("Opportunity Score", f"{score}/100")
+        
+        if score >= 80:
+            st.success("Strong opportunity! Good to proceed.")
+        elif score >= 65:
+            st.info("Promising with clear differentiation needed.")
+        else:
+            st.warning("Competitive niche. Consider unique angle.")
+
+# Main content
+st.title("📚 TPT Worksheet Generator")
+st.markdown("Create professional educational worksheets for Teachers Pay Teachers")
+
+if "worksheet_data" not in st.session_state:
+    st.session_state.worksheet_data = None
+
+# Tab layout
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📝 Content", " Design", "📊 Listing", "🖼️ Preview", " Export"
+])
+
+with tab1:
+    st.header("Worksheet Content")
+    
+    if st.button("Generate Worksheet Content", type="primary"):
+        if not gemini_api_key:
+            st.error("Please enter Gemini API Key in sidebar")
+        else:
+            with st.spinner("Generating worksheet content..."):
+                # Configure Gemini
+                genai.configure(api_key=gemini_api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # สร้าง prompt
+                prompt = create_worksheet_prompt(
+                    worksheet_type, grade_level, difficulty, 
+                    num_pages, theme
+                )
+                
+                # Generate content
+                response = model.generate_content(prompt)
+                
+                # Parse response
+                try:
+                    worksheet_data = json.loads(response.text)
+                    st.session_state.worksheet_data = worksheet_data
+                    
+                    # แสดง preview
+                    st.success("Content generated successfully!")
+                    st.json(worksheet_data)
+                    
+                    # คำนวณ cost
+                    tokens_used = estimate_tokens(prompt, response.text)
+                    cost = calculate_cost(tokens_used)
+                    st.info(f"Estimated API Cost: ${cost:.4f} (~{cost*35:.2f} THB)")
+                    
+                except json.JSONDecodeError:
+                    st.error("Failed to parse AI response. Please try again.")
+
+with tab2:
+    st.header("Design & Layout")
+    
+    if st.session_state.worksheet_data:
+        # แสดงตัวเลือก design
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            font_family = st.selectbox(
+                "Font Family",
+                ["Arial", "Times New Roman", "Comic Sans MS", "Century Gothic"]
+            )
+            
+            color_scheme = st.color_picker("Primary Color", "#4A90E2")
+            
+        with col2:
+            margin_size = st.slider("Margin (inches)", 0.5, 2.0, 0.75)
+            show_grid = st.checkbox("Show Grid Lines", value=False)
+        
+        if st.button("Generate PDF"):
+            pdf_buffer = generate_pdf(
+                st.session_state.worksheet_data,
+                paper_size="letter" if paper_size == "US Letter" else "a4",
+                font_family=font_family,
+                primary_color=color_scheme,
+                margin=margin_size
+            )
+            
+            st.download_button(
+                label="Download PDF",
+                data=pdf_buffer,
+                file_name=f"worksheet_{worksheet_type.lower().replace(' ', '_')}.pdf",
+                mime="application/pdf"
+            )
+
+with tab3:
+    st.header("TPT Listing Generator")
+    
+    if st.session_state.worksheet_data:
+        if st.button("Generate SEO Listing"):
+            with st.spinner("Creating listing..."):
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                listing_prompt = create_listing_prompt(
+                    st.session_state.worksheet_data,
+                    worksheet_type, grade_level
+                )
+                
+                response = model.generate_content(listing_prompt)
+                
+                listing_data = json.loads(response.text)
+                
+                # แสดง results
+                st.subheader("📝 Product Title")
+                st.text_input("Recommended Title", listing_data.get('title', ''))
+                
+                st.subheader(" Description")
+                st.text_area("Description", listing_data.get('description', ''), height=300)
+                
+                st.subheader("🏷️ Tags")
+                st.write("Categories:", ", ".join(listing_data.get('categories', [])))
+                st.write("Subject Areas:", ", ".join(listing_data.get('subjects', [])))
+                st.write("Tags:", ", ".join(listing_data.get('tags', [])))
+                
+                st.subheader(" Standards")
+                for std in listing_data.get('standards', []):
+                    st.write(f"- {std}")
+                
+                st.subheader("💵 Pricing")
+                st.metric("Suggested Price", f"${listing_data.get('price', 3.50)}")
+                
+                # ปุ่ม copy
+                if st.button("Copy All to Clipboard"):
+                    st.code(format_listing_for_copy(listing_data))
+
+with tab4:
+    st.header("Product Preview & Thumbnails")
+    
+    if st.session_state.worksheet_data:
+        st.subheader("Thumbnail Generator")
+        
+        thumbnail_style = st.selectbox(
+            "Thumbnail Style",
+            ["Modern Clean", "Colorful Elementary", "Professional", "Sample Collage"]
+        )
+        
+        if st.button("Generate Thumbnails"):
+            # สร้าง 4 thumbnails
+            thumbnails = generate_thumbnails(
+                st.session_state.worksheet_data,
+                worksheet_type, grade_level,
+                style=thumbnail_style
+            )
+            
+            cols = st.columns(2)
+            for i, thumb in enumerate(thumbnails):
+                with cols[i % 2]:
+                    st.image(thumb, caption=f"Thumbnail {i+1}")
+                    
+                    # Convert to bytes
+                    img_buffer = io.BytesIO()
+                    thumb.save(img_buffer, format='JPEG', quality=95)
+                    
+                    st.download_button(
+                        label=f"Download Thumbnail {i+1}",
+                        data=img_buffer.getvalue(),
+                        file_name=f"thumbnail_{i+1}.jpg",
+                        mime="image/jpeg"
+                    )
+        
+        st.subheader("Product Preview PDF")
+        if st.button("Generate Preview"):
+            preview_pdf = generate_preview_pdf(
+                st.session_state.worksheet_data,
+                include_watermark=True
+            )
+            
+            st.download_button(
+                label="Download Preview PDF",
+                data=preview_pdf,
+                file_name="product_preview.pdf",
+                mime="application/pdf"
+            )
+
+with tab5:
+    st.header("Export Complete Package")
+    
+    if st.session_state.worksheet_data:
+        st.write("This will generate:")
+        st.write("- ✅ Student Worksheets PDF")
+        st.write("- ✅ Answer Key PDF")
+        st.write("- ✅ Product Preview PDF")
+        st.write("- ✅ 4 Thumbnails (JPG)")
+        st.write("- ✅ Listing Information (TXT)")
+        st.write("- ✅ Complete ZIP Package")
+        
+        if st.button("Export Everything", type="primary"):
+            with st.spinner("Creating package..."):
+                package = create_complete_package(
+                    st.session_state.worksheet_data,
+                    worksheet_type, grade_level
+                )
+                
+                st.download_button(
+                    label="Download Complete Package (ZIP)",
+                    data=package,
+                    file_name=f"TPT_{worksheet_type}_{grade_level}_Package.zip",
+                    mime="application/zip"
+                )
+                
+                st.success("Package ready for TPT upload!")
+
+# Helper functions
+def calculate_opportunity_score(worksheet_type, grade_level):
+    """คำนวณโอกาสทางการตลาด"""
+    # ข้อมูลตัวอย่าง - ควร update จาก research จริง
+    niche_data = {
+        "Sight Words": {"competition": 90, "demand": 95},
+        "Morning Work": {"competition": 85, "demand": 90},
+        "Math Practice": {"competition": 80, "demand": 85},
+        "Reading Comprehension": {"competition": 75, "demand": 88},
+        "Phonics": {"competition": 70, "demand": 85},
+        "Sudoku": {"competition": 40, "demand": 60},
+        "Budget Worksheets": {"competition": 30, "demand": 70},
     }
     
-    setIsGenerating(true);
-    setError('');
+    data = niche_data.get(worksheet_type, {"competition": 50, "demand": 50})
+    
+    # สูตรคำนวณ (ปรับได้ตามต้องการ)
+    score = (data["demand"] * 0.6) + ((100 - data["competition"]) * 0.4)
+    
+    return int(score)
 
-    try {
-      const prompt = `
-        You are an expert TPT (Teachers Pay Teachers) product creator.
-        Create a complete English-language product for:
-        Topic: ${topic}
-        Grade: ${grade}
-        Subject: ${subject}
-        Number of worksheet pages: ${numPages} (each page should have 3-5 questions)
+def create_worksheet_prompt(w_type, grade, difficulty, pages, theme):
+    """สร้าง prompt สำหรับ generate worksheet"""
+    return f"""
+Create a complete educational worksheet with the following specifications:
 
-        Return ONLY a JSON object matching this exact structure:
-        {
-          "listing_info": {
-            "seo_title": "Catchy SEO Title for TPT",
-            "description": "Engaging product description (min 3 paragraphs)",
-            "suggested_price": 3.00,
-            "teaching_duration": "e.g., 1 Hour",
-            "tags": ["tag1", "tag2", "tag3"],
-            "categories": ["category1", "category2"]
-          },
-          "pages": [
-            {
-              "page_title": "Title of the page",
-              "instructions": "Instructions for student",
-              "questions": [
-                { "q": "Question text", "a": "Answer text", "clipart": "keyword for clipart (e.g., cute apple)" }
-              ]
-            }
-          ]
-        }
-      `;
+Type: {w_type}
+Grade: {grade}
+Difficulty: {difficulty}
+Number of Pages: {pages}
+Theme: {theme}
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
+Return in JSON format with this structure:
+{{
+    "title": "Worksheet title",
+    "learning_objective": "Clear learning objective",
+    "grade_level": "{grade}",
+    "pages": [
+        {{
+            "page_number": 1,
+            "page_type": "student_work",
+            "instructions": "Student directions",
+            "questions": [
+                {{"id": 1, "question": "...", "answer": "...", "type": "..."}}
+            ]
+        }}
+    ],
+    "answer_key": {{
+        "page_number": "answer key page number",
+        "answers": [...]
+    }},
+    "skills_covered": ["skill1", "skill2"],
+    "total_questions": 0
+}}
 
-      if (!response.ok) {
-        throw new Error('API Request failed. Please check your API Key.');
-      }
+Make sure:
+1. Content is age-appropriate for {grade}
+2. Questions progress in difficulty
+3. All answers are accurate
+4. Instructions are clear
+5. Content is original
+"""
 
-      const data = await response.json();
-      const jsonText = data.candidates[0].content.parts[0].text;
-      
-      const parsedData = JSON.parse(jsonText);
-      setProductData(parsedData);
-      setActiveTab('content'); // Switch to content tab on success
-      
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการประมวลผล');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+def create_listing_prompt(worksheet_data, w_type, grade):
+    """สร้าง prompt สำหรับ generate listing"""
+    return f"""
+Based on this worksheet data: {json.dumps(worksheet_data)}
 
-  const handlePrint = () => {
-    const printContent = document.getElementById('printable-worksheet').innerHTML;
-    const printWindow = window.open('', '', 'width=800,height=900');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Worksheet</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap');
-            body { 
-              font-family: 'Comic Neue', cursive, sans-serif; 
-              margin: 0; padding: 0; 
-              color: #333;
-            }
-            .page { 
-              page-break-after: always; 
-              padding: 40px; 
-              width: 8.5in; 
-              height: 11in; 
-              box-sizing: border-box;
-              margin: 0 auto;
-            }
-            .header { 
-              text-align: center; 
-              border-bottom: 2px solid #333; 
-              padding-bottom: 10px; 
-              margin-bottom: 30px; 
-            }
-            .title { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
-            .instructions { font-size: 16px; font-style: italic; }
-            .name-date { 
-              display: flex; justify-content: space-between; 
-              font-size: 18px; margin-bottom: 20px; font-weight: bold;
-            }
-            .question-box { 
-              margin-bottom: 25px; padding: 15px; 
-              border: 2px dashed #bbb; border-radius: 10px; 
-              min-height: 80px;
-            }
-            .clipart-box {
-              float: right; width: 60px; height: 60px;
-              border: 1px solid #eee; background: #fafafa;
-              display: flex; align-items: center; justify-content: center;
-              font-size: 10px; color: #aaa; text-align: center; border-radius: 8px;
-            }
-            .q-text { font-size: 20px; margin-bottom: 10px; }
-            .answer-line { 
-              margin-top: 30px; border-bottom: 1px solid #333; 
-              width: 80%; height: 20px; 
-            }
-          </style>
-        </head>
-        <body>${printContent}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 500);
-  };
+Create a complete TPT listing with:
 
-  const handleUpdateQuestion = (pageIndex, qIndex, field, value) => {
-    const newData = { ...productData };
-    newData.pages[pageIndex].questions[qIndex][field] = value;
-    setProductData(newData);
-  };
+1. SEO-optimized title (include grade, skill, resource type)
+2. Engaging description with:
+   - Opening that solves teacher's problem
+   - What's included
+   - Skills covered
+   - How to use
+   - Differentiation
+3. Categories and tags
+4. Education standards (if applicable)
+5. Suggested price based on page count and quality
+6. Teaching duration
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    alert('คัดลอกข้อความแล้ว (Copied!)');
-  };
+Return in JSON format:
+{{
+    "title": "...",
+    "description": "...",
+    "categories": ["..."],
+    "subjects": ["..."],
+    "tags": ["..."],
+    "standards": ["..."],
+    "price": 3.50,
+    "teaching_duration": "1 week",
+    "total_pages": 0,
+    "grade_levels": ["..."]
+}}
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
-      
-      {/* SIDEBAR */}
-      <div className="w-full md:w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-indigo-600 text-white">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Wand2 className="w-6 h-6" /> TPT Builder Pro
-          </h1>
-          <p className="text-xs text-indigo-200 mt-1">AI Worksheet & Listing Generator</p>
-        </div>
+Use natural American English. Focus on buyer search intent.
+"""
 
-        <div className="p-6 flex-1 overflow-y-auto space-y-6">
-          {/* API Setup */}
-          <div className="space-y-3">
-            <label className="text-sm font-semibold flex items-center gap-2 text-gray-700">
-              <Settings className="w-4 h-4 text-gray-500"/> Gemini API Key
-            </label>
-            <input 
-              type="password" 
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              placeholder="AIzaSy..."
-            />
-          </div>
+def estimate_tokens(input_text, output_text):
+    """ประมาณการ tokens ที่ใช้"""
+    # ประมาณ 4 characters = 1 token
+    input_tokens = len(input_text) // 4
+    output_tokens = len(output_text) // 4
+    return input_tokens + output_tokens
 
-          <div className="w-full h-px bg-gray-200"></div>
+def calculate_cost(total_tokens):
+    """คำนวณ cost (Gemini 1.5 Flash)"""
+    # Input: $0.35 per 1M tokens
+    # Output: $1.05 per 1M tokens
+    # ประมาณครึ่งหนึ่งเป็น input ครึ่งหนึ่งเป็น output
+    input_cost = (total_tokens / 2) / 1_000_000 * 0.35
+    output_cost = (total_tokens / 2) / 1_000_000 * 1.05
+    return input_cost + output_cost
 
-          {/* Product Settings */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-700">⚙️ Product Details</h3>
-            
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Grade Level</label>
-              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
-                <option>Pre-K</option>
-                <option>Kindergarten</option>
-                <option>1st Grade</option>
-                <option>2nd Grade</option>
-                <option>3rd Grade</option>
-                <option>Special Ed</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Subject</label>
-              <select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
-                <option>Math</option>
-                <option>ELA / Reading</option>
-                <option>Science</option>
-                <option>Life Skills</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Specific Topic (Niche)</label>
-              <input 
-                type="text" 
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="e.g. Spring Addition, Phonics..."
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Pages to Generate: {numPages}</label>
-              <input 
-                type="range" min="1" max="5" 
-                value={numPages}
-                onChange={(e) => setNumPages(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          </div>
-
-          <button 
-            onClick={generateTPTProduct}
-            disabled={isGenerating}
-            className={`w-full py-3 rounded-lg font-bold text-white shadow-md transition-all flex justify-center items-center gap-2
-              ${isGenerating ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5'}`}
-          >
-            {isGenerating ? 'Generating...' : '🪄 Generate Full Product'}
-          </button>
-          
-          {error && (
-            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md flex gap-2 items-start">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+def generate_pdf(worksheet_data, paper_size, font_family, primary_color, margin):
+    """Generate PDF worksheet"""
+    buffer = io.BytesIO()
+    
+    if paper_size == "letter":
+        size = letter
+    else:
+        size = A4
+    
+    c = canvas.Canvas(buffer, pagesize=size)
+    width, height = size
+    
+    # ตั้งค่า font
+    c.setFont(font_family, 12)
+    
+    # สร้างเนื้อหา
+    for page in worksheet_data.get('pages', []):
+        y_position = height - margin * 72  # เริ่มจากบน
         
-        {/* TABS */}
-        <div className="bg-white border-b border-gray-200 px-6 pt-4 flex gap-6 shrink-0">
-          <button 
-            onClick={() => setActiveTab('content')}
-            className={`pb-3 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'content' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            <FileText className="w-4 h-4"/> 1. Worksheet Editor
-          </button>
-          <button 
-            onClick={() => setActiveTab('listing')}
-            className={`pb-3 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'listing' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            <ShoppingCart className="w-4 h-4"/> 2. TPT Listing Info
-          </button>
-          <button 
-            onClick={() => setActiveTab('export')}
-            className={`pb-3 font-medium flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'export' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            <Download className="w-4 h-4"/> 3. Export PDF
-          </button>
-        </div>
+        # Title
+        c.setFont(font_family, 16)
+        c.setFillColor(primary_color)
+        c.drawString(margin * 72, y_position, page.get('instructions', ''))
+        
+        y_position -= 30
+        
+        # Questions
+        c.setFont(font_family, 12)
+        c.setFillColor('black')
+        
+        for q in page.get('questions', []):
+            question_text = f"{q.get('id')}. {q.get('question', '')}"
+            c.drawString(margin * 72, y_position, question_text)
+            y_position -= 25
+            
+            # Answer space
+            c.line(margin * 72, y_position, (margin + 6) * 72, y_position)
+            y_position -= 30
+            
+            # New page if needed
+            if y_position < margin * 72:
+                c.showPage()
+                y_position = height - margin * 72
+                c.setFont(font_family, 12)
+        
+        c.showPage()
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
 
-        {/* TAB CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-          
-          {!productData && !isGenerating && (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-              <Wand2 className="w-16 h-16 opacity-20" />
-              <p className="text-lg">ใส่ API Key แล้วกด Generate ด้านซ้ายเพื่อสร้างใบงาน</p>
-            </div>
-          )}
+def generate_thumbnails(worksheet_data, w_type, grade, style="Modern Clean"):
+    """Generate 4 thumbnails"""
+    thumbnails = []
+    
+    # Thumbnail 1: Main Cover
+    img1 = Image.new('RGB', (1500, 1500), color='#4A90E2')
+    draw1 = ImageDraw.Draw(img1)
+    
+    # เพิ่ม text (ใน production ควรใช้ font จริง)
+    draw1.text((750, 400), worksheet_data.get('title', 'Worksheet'), 
+               fill='white', anchor="mm")
+    draw1.text((750, 600), grade, fill='white', anchor="mm")
+    draw1.text((750, 800), w_type, fill='white', anchor="mm")
+    
+    thumbnails.append(img1)
+    
+    # Thumbnail 2: What's Included
+    img2 = Image.new('RGB', (1500, 1500), color='#50C878')
+    draw2 = ImageDraw.Draw(img2)
+    draw2.text((750, 500), "What's Included:", fill='white', anchor="mm")
+    draw2.text((750, 700), f"{len(worksheet_data.get('pages', []))} Student Pages", 
+               fill='white', anchor="mm")
+    draw2.text((750, 900), "Answer Key Included", fill='white', anchor="mm")
+    
+    thumbnails.append(img2)
+    
+    # Thumbnail 3: Skills
+    img3 = Image.new('RGB', (1500, 1500), color='#FF6B6B')
+    draw3 = ImageDraw.Draw(img3)
+    draw3.text((750, 500), "Skills Covered:", fill='white', anchor="mm")
+    for i, skill in enumerate(worksheet_data.get('skills_covered', [])[:3]):
+        draw3.text((750, 650 + i*100), f"• {skill}", fill='white', anchor="mm")
+    
+    thumbnails.append(img3)
+    
+    # Thumbnail 4: Features
+    img4 = Image.new('RGB', (1500, 1500), color='#FFD93D')
+    draw4 = ImageDraw.Draw(img4)
+    draw4.text((750, 500), "Features:", fill='black', anchor="mm")
+    draw4.text((750, 700), "✓ No Prep", fill='black', anchor="mm")
+    draw4.text((750, 850), "✓ Print & Go", fill='black', anchor="mm")
+    draw4.text((750, 1000), "✓ Answer Key", fill='black', anchor="mm")
+    
+    thumbnails.append(img4)
+    
+    return thumbnails
 
-          {isGenerating && (
-            <div className="h-full flex flex-col items-center justify-center text-indigo-500 space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-              <p className="text-lg font-medium animate-pulse">AI กำลังวิเคราะห์และออกแบบเนื้อหา...</p>
-            </div>
-          )}
+def generate_preview_pdf(worksheet_data, include_watermark=True):
+    """Generate product preview PDF"""
+    # Implementation similar to generate_pdf
+    # แต่เพิ่ม watermark และเลือกเฉพาะบางหน้า
+    pass
 
-          {productData && !isGenerating && (
-            <div className="max-w-4xl mx-auto pb-20">
-              
-              {/* TAB 1: CONTENT EDITOR */}
-              {activeTab === 'content' && (
-                <div className="space-y-8">
-                  <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                    <div>
-                      <h4 className="font-bold">สร้างเนื้อหาสำเร็จ!</h4>
-                      <p className="text-sm opacity-90">คุณสามารถตรวจสอบและแก้ไขข้อความต่างๆ ด้านล่างนี้ได้โดยตรง ก่อนทำการปริ้นต์หรือเซฟเป็น PDF</p>
-                    </div>
-                  </div>
+def create_complete_package(worksheet_data, w_type, grade):
+    """Create complete ZIP package"""
+    import zipfile
+    
+    buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Student worksheets
+        pdf_buffer = generate_pdf(worksheet_data, "letter", "Arial", "#000000", 0.75)
+        zip_file.writestr("Student_Worksheets.pdf", pdf_buffer.getvalue())
+        
+        # Answer key
+        if 'answer_key' in worksheet_data:
+            ak_buffer = generate_answer_key_pdf(worksheet_data)
+            zip_file.writestr("Answer_Key.pdf", ak_buffer.getvalue())
+        
+        # Thumbnails
+        thumbnails = generate_thumbnails(worksheet_data, w_type, grade)
+        for i, thumb in enumerate(thumbnails):
+            img_buffer = io.BytesIO()
+            thumb.save(img_buffer, format='JPEG')
+            zip_file.writestr(f"Thumbnail_{i+1}.jpg", img_buffer.getvalue())
+        
+        # Listing info
+        listing_text = format_listing_for_copy(worksheet_data)
+        zip_file.writestr("Listing_Information.txt", listing_text)
+        
+        # Preview
+        preview_buffer = generate_preview_pdf(worksheet_data)
+        zip_file.writestr("Product_Preview.pdf", preview_buffer.getvalue())
+    
+    buffer.seek(0)
+    return buffer
 
-                  {productData.pages.map((page, pIdx) => (
-                    <div key={pIdx} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                      <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-gray-400"/> หน้าที่ {pIdx + 1}: {page.page_title}
-                      </h3>
-                      
-                      <div className="space-y-6">
-                        {page.questions.map((q, qIdx) => (
-                          <div key={qIdx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 flex gap-4">
-                            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <ImageIcon className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1 space-y-3">
-                              <div className="flex justify-between items-center text-xs text-gray-500">
-                                <span>ข้อที่ {qIdx + 1}</span>
-                                <span className="bg-gray-200 px-2 py-1 rounded">Clipart IDEA: {q.clipart}</span>
-                              </div>
-                              <div>
-                                <label className="text-xs font-semibold text-gray-600 uppercase">Question (โจทย์)</label>
-                                <input 
-                                  className="w-full p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
-                                  value={q.q}
-                                  onChange={(e) => handleUpdateQuestion(pIdx, qIdx, 'q', e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs font-semibold text-green-600 uppercase">Answer (เฉลย)</label>
-                                <input 
-                                  className="w-full p-2 border border-gray-300 rounded bg-green-50 text-green-800 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                  value={q.a}
-                                  onChange={(e) => handleUpdateQuestion(pIdx, qIdx, 'a', e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+def format_listing_for_copy(listing_data):
+    """Format listing for easy copy-paste"""
+    text = f"""
+TITLE:
+{listing_data.get('title', '')}
 
-              {/* TAB 2: LISTING INFO */}
-              {activeTab === 'listing' && (
-                <div className="space-y-6">
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-5">
-                    
-                    <div className="flex justify-between items-start">
-                      <div className="w-3/4">
-                        <label className="text-sm font-bold text-gray-700 block mb-1">Product Title (SEO Optimized)</label>
-                        <div className="text-xl font-bold text-indigo-700 bg-indigo-50 p-3 rounded border border-indigo-100">
-                          {productData.listing_info.seo_title}
-                        </div>
-                      </div>
-                      <div className="w-1/4 text-right">
-                        <label className="text-sm font-bold text-gray-700 block mb-1">Suggested Price</label>
-                        <div className="text-2xl font-black text-green-600">
-                          ${parseFloat(productData.listing_info.suggested_price).toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
+DESCRIPTION:
+{listing_data.get('description', '')}
 
-                    <div>
-                      <div className="flex justify-between items-end mb-1">
-                        <label className="text-sm font-bold text-gray-700">Product Description</label>
-                        <button onClick={() => copyToClipboard(productData.listing_info.description)} className="text-xs text-indigo-600 flex items-center gap-1 hover:underline">
-                          <Copy className="w-3 h-3"/> Copy to clipboard
-                        </button>
-                      </div>
-                      <textarea 
-                        readOnly 
-                        className="w-full p-4 border border-gray-300 rounded-lg h-64 bg-gray-50 focus:outline-none leading-relaxed"
-                        value={productData.listing_info.description}
-                      />
-                    </div>
+CATEGORIES:
+{', '.join(listing_data.get('categories', []))}
 
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                         <label className="text-sm font-bold text-gray-700 block mb-2">Categories</label>
-                         <div className="flex flex-wrap gap-2">
-                           {productData.listing_info.categories.map((c, i) => (
-                             <span key={i} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">{c}</span>
-                           ))}
-                         </div>
-                      </div>
-                      <div>
-                         <label className="text-sm font-bold text-gray-700 block mb-2">Tags / Keywords</label>
-                         <div className="flex flex-wrap gap-2">
-                           {productData.listing_info.tags.map((t, i) => (
-                             <span key={i} className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">#{t}</span>
-                           ))}
-                         </div>
-                      </div>
-                    </div>
+SUBJECTS:
+{', '.join(listing_data.get('subjects', []))}
 
-                  </div>
-                </div>
-              )}
+TAGS:
+{', '.join(listing_data.get('tags', []))}
 
-              {/* TAB 3: EXPORT */}
-              {activeTab === 'export' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
-                  {/* Action Panel */}
-                  <div className="md:col-span-1 space-y-4">
-                    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                      <h3 className="font-bold text-lg mb-4">Export Options</h3>
-                      <button 
-                        onClick={handlePrint}
-                        className="w-full bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-md transition-all"
-                      >
-                        <Printer className="w-5 h-5"/> Save as PDF / Print
-                      </button>
-                      <p className="text-xs text-gray-500 mt-3 text-center">
-                        * ระบบจะเปิดหน้าต่างปริ้นต์ ให้คุณเลือก <b>"Save as PDF"</b> (ขนาด US Letter)
-                      </p>
-                    </div>
+STANDARDS:
+{chr(10).join(listing_data.get('standards', []))}
 
-                    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                      <h3 className="font-bold text-lg mb-4 text-green-700">Answer Key</h3>
-                      <div className="text-sm space-y-3 bg-gray-50 p-3 rounded border">
-                        {productData.pages.map((p, i) => (
-                          <div key={i}>
-                            <div className="font-bold border-b pb-1 mb-1">Page {i+1}</div>
-                            {p.questions.map((q, j) => (
-                              <div key={j}><span className="text-gray-500">{j+1}.</span> {q.a}</div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+PRICE: ${listing_data.get('price', 3.50)}
 
-                  {/* Visual Preview Panel */}
-                  <div className="md:col-span-2 bg-gray-300 p-8 rounded-xl flex flex-col items-center overflow-y-auto" style={{ maxHeight: '70vh' }}>
-                    
-                    {/* Rendered Hidden HTML for Printing */}
-                    <div id="printable-worksheet" className="w-full max-w-[816px] bg-white shadow-xl">
-                      {productData.pages.map((page, pIdx) => (
-                        <div key={pIdx} className="page" style={{ padding: '40px', boxSizing: 'border-box', minHeight: '1056px', borderBottom: '1px dashed #ccc' }}>
-                          <div className="name-date" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontFamily: 'sans-serif' }}>
-                            <span>Name: ______________________</span>
-                            <span>Date: _______________</span>
-                          </div>
-                          
-                          <div className="header" style={{ textAlign: 'center', borderBottom: '2px solid #333', paddingBottom: '10px', marginBottom: '30px' }}>
-                            <div className="title" style={{ fontSize: '28px', fontWeight: 'bold' }}>{page.page_title}</div>
-                            <div className="instructions" style={{ fontStyle: 'italic', color: '#555' }}>{page.instructions}</div>
-                          </div>
+TEACHING DURATION: {listing_data.get('teaching_duration', 'N/A')}
 
-                          <div className="questions">
-                            {page.questions.map((q, qIdx) => (
-                              <div key={qIdx} className="question-box" style={{ padding: '15px', border: '2px dashed #bbb', borderRadius: '10px', marginBottom: '20px', minHeight: '80px', overflow: 'hidden' }}>
-                                <div className="clipart-box" style={{ float: 'right', width: '60px', height: '60px', border: '1px solid #eee', backgroundColor: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#aaa', textAlign: 'center', borderRadius: '8px' }}>
-                                  [ {q.clipart} ]
-                                </div>
-                                <div className="q-text" style={{ fontSize: '20px', fontWeight: '500', marginBottom: '15px' }}>
-                                  {qIdx + 1}. {q.q}
-                                </div>
-                                <div className="answer-line" style={{ borderBottom: '1px solid #333', width: '70%', height: '20px' }}></div>
-                              </div>
-                            ))}
-                          </div>
-                          <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '10px', color: '#999' }}>© {productData.listing_info.seo_title} | TPT Worksheet Builder</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+TOTAL PAGES: {listing_data.get('total_pages', 0)}
+"""
+    return text
 
-                </div>
-              )}
-
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+# Run app
+if __name__ == "__main__":
+    st.write("---")
+    st.caption("TPT Worksheet Generator v1.0 | Built with Streamlit & Gemini AI")
