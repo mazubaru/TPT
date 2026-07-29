@@ -39,10 +39,10 @@ with st.sidebar:
     )
     
     difficulty = st.select_slider(
-        "Difficulty",
-        options=["Beginner", "Easy", "Grade Level", "Challenging", "Advanced"],
-        value=2
-    )
+    "Difficulty",
+    options=["Beginner", "Easy", "Grade Level", "Challenging", "Advanced"],
+    value="Grade Level"  # <--- แก้เป็นข้อความตามนี้ครับ
+)
     
     num_pages = st.number_input("Number of Pages", min_value=1, max_value=50, value=10)
     
