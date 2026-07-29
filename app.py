@@ -110,7 +110,7 @@ def calculate_opportunity_score(w_type, grade):
 def generate_worksheet_content(api_key, w_type, grade, pages, theme):
     """Generate worksheet content using Gemini"""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-3.5-flash')
     
     prompt = f"""Create a complete educational worksheet for {grade} students.
 Type: {w_type}
@@ -152,7 +152,7 @@ All content must be in English."""
 def generate_listing(api_key, worksheet_data, grade, w_type, pages):
     """Generate TPT listing using Gemini"""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-3.5-flash')
     
     prompt = f"""Create a professional TPT product listing for this worksheet:
 Title: {worksheet_data.get('title', '')}
