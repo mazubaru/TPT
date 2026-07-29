@@ -26,7 +26,7 @@ def calculate_opportunity_score(w_type, grade):
 def generate_worksheet_content(api_key, w_type, grade, pages):
     """Generate worksheet content using Gemini"""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-3.5-flash')
     prompt = f"""Create a simple JSON for a {grade} {w_type} worksheet with {pages} pages. 
     Return ONLY valid JSON with this structure:
     {{
