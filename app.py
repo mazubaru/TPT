@@ -18,9 +18,9 @@ import re
 # ==========================================
 
 # Gemini Model Configuration
-# หมายเหตุ: ใช้ gemini-1.5-flash ที่เสถียรที่สุด
+# หมายเหตุ: ใช้ gemini-3.5-flash ที่เสถียรที่สุด
 # หากต้องการใช้รุ่นอื่น ให้เปลี่ยนชื่อโมเดลตรงนี้
-GEMINI_MODEL = 'gemini-1.5-flash'
+GEMINI_MODEL = 'gemini-3.5-flash'
 
 THEMES = {
     "Clean Classroom": {
@@ -397,7 +397,7 @@ def generate_pdf(worksheet_data, theme_colors, paper_size="letter", include_answ
         
         # Header with color
         c.setFillColor(HexColor(theme_colors['primary']))
-        c.rect(0, height - 1.5*inch, width, 1.5*inch, fill=1)
+        c.rect(0, height - *inch, width, *inch, fill=1)
         
         # Title
         c.setFillColor(HexColor('#FFFFFF'))
@@ -1021,4 +1021,4 @@ with tab6:
 # Footer
 st.divider()
 st.caption("TPT Worksheet Generator Pro | Built with Streamlit & Gemini AI | AI-Generated Content")
-st.caption("หมายเหตุ: ใช้ Gemini 1.5 Flash สำหรับสร้างเนื้อหา | ภาพประกอบสร้างด้วย shapes | รันบน Streamlit Cloud ได้ 100%")
+st.caption("หมายเหตุ: ใช้ Gemini 3.5 Flash สำหรับสร้างเนื้อหา | ภาพประกอบสร้างด้วย shapes | รันบน Streamlit Cloud ได้ 100%")
