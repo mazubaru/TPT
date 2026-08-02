@@ -2032,7 +2032,122 @@ Return ONLY valid JSON.`;
         // ============================================
         // EXPORT FUNCTIONS
         // ============================================
+
+        // Helper: พยายามดาวน์โหลดไฟล์ด้วยหลายวิธี (fallback)
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    
+    // วิธีที่ 1: สร้าง <a> tag และ click
+    try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
         
+        // Cleanup หลังจาก 1 วินาที
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
+        
+        console.log('✅ Download method 1 (a.click) executed');
+        return true;
+    } catch (e) {
+        console.warn('⚠️ Method 1 failed:', e);
+    }
+    
+    // วิธีที่ 2: เปิดในแท็บใหม่ (สำหรับ iframe)
+    try {
+        window.open(url, '_blank');
+        console.log('✅ Download method 2 (window.open) executed');
+        return true;
+    } catch (e) {
+        console.warn('⚠️ Method 2 failed:', e);
+    }
+    
+    // วิธีที่ 3: แสดงลิงก์ให้ผู้ใช้คลิกเอง (fallback สุดท้าย)
+    try {
+        showDownloadLink(url, filename);
+        console.log('✅ Download method 3 (manual link) shown');
+        return true;
+    } catch (e) {
+        console.error('❌ All download methods failed:', e);
+        return false;
+    }
+}
+
+// แสดงลิงก์ดาวน์โหลดแบบ manual
+function showDownloadLink(url, filename) {
+    // ลบ modal เก่าถ้ามี
+    const oldModal = document.getElementById('download-modal');
+    if (oldModal) oldModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'download-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+    `;
+    
+    modal.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 16px;">📥</div>
+            <h3 style="font-family: 'Fredoka', sans-serif; font-size: 20px; margin-bottom: 12px; color: #7C3AED;">
+                ดาวน์โหลดไฟล์ของคุณ
+            </h3>
+            <p style="font-size: 14px; color: #6B7280; margin-bottom: 20px;">
+                คลิกปุ่มด้านล่างเพื่อดาวน์โหลดไฟล์<br>
+                <strong style="color: #1F2937;">${filename}</strong>
+            </p>
+            <a href="${url}" download="${filename}" style="
+                display: inline-block;
+                background: linear-gradient(135deg, #7C3AED 0%, #F472B6 100%);
+                color: white;
+                padding: 12px 32px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-family: 'Fredoka', sans-serif;
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 16px;
+                box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+            ">
+                💾 ดาวน์โหลดเลย
+            </a>
+            <br>
+            <button onclick="document.getElementById('download-modal').remove()" style="
+                background: none;
+                border: none;
+                color: #6B7280;
+                font-size: 13px;
+                cursor: pointer;
+                text-decoration: underline;
+            ">
+                ปิด
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
        async function exportPDF(type) {
     if (state.worksheets.length === 0) {
         showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
@@ -2046,7 +2161,6 @@ Return ONLY valid JSON.`;
         const paperSize = elements.paperSize.value;
         const format = paperSize === 'a4' ? 'a4' : 'letter';
         
-        // สร้าง PDF ว่างไว้ก่อน
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -2057,7 +2171,6 @@ Return ONLY valid JSON.`;
         const pageHeight = pdf.internal.pageSize.getHeight();
         const storeName = elements.storeName.value || 'MathFun Academy';
         
-        // สร้าง container ชั่วคราวสำหรับ render ทีละหน้า
         const tempContainer = document.createElement('div');
         tempContainer.style.cssText = `
             position: fixed;
@@ -2069,24 +2182,18 @@ Return ONLY valid JSON.`;
         `;
         document.body.appendChild(tempContainer);
         
-        // Helper: render หน้าเดียวเป็น canvas แล้วเพิ่มเข้า PDF
         async function renderPageToPdf(htmlContent, isFirst) {
             tempContainer.innerHTML = htmlContent;
-            
-            // รอให้ fonts โหลดเสร็จ
             await document.fonts.ready;
-            
-            // รอเล็กน้อยให้ layout สมบูรณ์
             await new Promise(resolve => setTimeout(resolve, 100));
             
             const element = tempContainer.firstElementChild;
             
-            // ใช้ html2canvas โดยตรง (ควบคุม memory ได้ดีกว่า html2pdf)
             const canvas = await html2canvas(element, {
-                scale: 1.5,              // ลดจาก 2 → 1.5 (ประหยัด memory)
+                scale: 1.5,
                 useCORS: true,
                 allowTaint: true,
-                logging: false,          // ปิด log ที่ไม่จำเป็น
+                logging: false,
                 backgroundColor: '#ffffff',
                 windowWidth: element.scrollWidth,
                 windowHeight: element.scrollHeight,
@@ -2098,7 +2205,6 @@ Return ONLY valid JSON.`;
             if (!isFirst) pdf.addPage();
             pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
             
-            // 🔑 Release memory ทันที
             canvas.width = 0;
             canvas.height = 0;
             tempContainer.innerHTML = '';
@@ -2106,7 +2212,7 @@ Return ONLY valid JSON.`;
         
         let isFirst = true;
         
-        // === หน้าปก ===
+        // หน้าปก
         if (type !== 'answerkey' && elements.includeCover.checked) {
             const coverHtml = `
                 <div style="width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; 
@@ -2131,12 +2237,10 @@ Return ONLY valid JSON.`;
             `;
             await renderPageToPdf(coverHtml, isFirst);
             isFirst = false;
-            
-            // อัพเดท progress
             elements.progressFill.style.width = '10%';
         }
         
-        // === หน้าใบงาน (render ทีละหน้า) ===
+        // หน้าใบงาน
         if (type !== 'answerkey') {
             for (let idx = 0; idx < state.worksheets.length; idx++) {
                 const puzzle = state.worksheets[idx];
@@ -2184,17 +2288,15 @@ Return ONLY valid JSON.`;
                 await renderPageToPdf(pageHtml, isFirst);
                 isFirst = false;
                 
-                // อัพเดท progress
                 const progress = ((idx + 1) / state.worksheets.length) * 80 + 10;
                 elements.progressFill.style.width = `${progress}%`;
                 elements.loadingSub.textContent = `Rendering page ${idx + 1} of ${state.worksheets.length}...`;
                 
-                // ปล่อย main thread ให้ browser ได้หายใจ
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
         
-        // === หน้าเฉลย ===
+        // หน้าเฉลย
         if (type !== 'preview' && elements.includeAnswerKey.checked) {
             let answerContent = '';
             state.worksheets.forEach((puzzle, idx) => {
@@ -2227,16 +2329,25 @@ Return ONLY valid JSON.`;
             await renderPageToPdf(answerHtml, isFirst);
         }
         
-        // ลบ container ทิ้ง
         document.body.removeChild(tempContainer);
         
-        // Save PDF
+        // ✅ ใช้ helper function ที่รองรับหลายวิธี
         const filename = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`;
-        pdf.save(filename);
+        
+        // แปลง PDF เป็น blob
+        const pdfBlob = pdf.output('blob');
+        
+        // พยายามดาวน์โหลด
+        const success = downloadBlob(pdfBlob, filename);
         
         elements.progressFill.style.width = '100%';
         hideLoading();
-        showToast(`✅ Export ${type} สำเร็จ!`);
+        
+        if (success) {
+            showToast(`✅ Export ${type} สำเร็จ!`);
+        } else {
+            showToast(`⚠️ สร้าง PDF สำเร็จ แต่ไม่สามารถดาวน์โหลดอัตโนมัติได้ กรุณาใช้ลิงก์ที่ปรากฏ`, 'error');
+        }
         
         setTimeout(() => {
             elements.progressBar.style.display = 'none';
@@ -2244,7 +2355,7 @@ Return ONLY valid JSON.`;
         }, 1000);
         
     } catch (error) {
-        // Cleanup เสมอแม้เกิด error
+        // Cleanup
         const tempContainers = document.querySelectorAll('div[style*="left: -9999px"]');
         tempContainers.forEach(c => c.remove());
         
@@ -2266,11 +2377,6 @@ Return ONLY valid JSON.`;
     try {
         const zip = new JSZip();
         const storeName = elements.storeName.value || 'MathFun Academy';
-        
-        // ใช้ exportPDF ที่แก้แล้วเพื่อสร้าง blob แล้วเพิ่มเข้า zip
-        // วิธีนี้ประหยัด memory กว่า render ใหม่
-        
-        // 1. สร้าง Worksheet PDF (ใช้ jsPDF โดยตรง)
         const { jsPDF } = window.jspdf;
         const paperSize = elements.paperSize.value;
         const format = paperSize === 'a4' ? 'a4' : 'letter';
@@ -2279,13 +2385,12 @@ Return ONLY valid JSON.`;
         const pageWidth = worksheetPdf.internal.pageSize.getWidth();
         const pageHeight = worksheetPdf.internal.pageSize.getHeight();
         
-        // สร้าง temp container
         const tempContainer = document.createElement('div');
         tempContainer.style.cssText = `position: fixed; left: -9999px; top: 0; 
             width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; background: white; z-index: -1;`;
         document.body.appendChild(tempContainer);
         
-        // Render หน้าปก
+        // หน้าปก
         if (elements.includeCover.checked) {
             tempContainer.innerHTML = `<div style="width: 100%; min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; padding: 60px; text-align: center; font-family: Fredoka, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box;">
                 <div style="font-size: 80px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
@@ -2301,7 +2406,7 @@ Return ONLY valid JSON.`;
             canvas.width = canvas.height = 0;
         }
         
-        // Render ใบงานทีละหน้า
+        // ใบงานทีละหน้า
         for (let idx = 0; idx < state.worksheets.length; idx++) {
             const puzzle = state.worksheets[idx];
             let content = '';
@@ -2346,7 +2451,7 @@ Return ONLY valid JSON.`;
         document.body.removeChild(tempContainer);
         zip.file('Worksheet.pdf', worksheetPdf.output('arraybuffer'));
         
-        // 2. Answer Key PDF (render แยก)
+        // Answer Key
         if (elements.includeAnswerKey.checked) {
             const answerPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: format });
             const tempContainer2 = document.createElement('div');
@@ -2377,7 +2482,7 @@ Return ONLY valid JSON.`;
             zip.file('Answer-Key.pdf', answerPdf.output('arraybuffer'));
         }
         
-        // 3. Thumbnails
+        // Thumbnails
         const thumbnailCanvases = document.querySelectorAll('#thumbnailGrid canvas');
         for (let i = 0; i < thumbnailCanvases.length; i++) {
             const canvas = thumbnailCanvases[i];
@@ -2387,33 +2492,37 @@ Return ONLY valid JSON.`;
             }
         }
         
-        // 4. Metadata
+        // Metadata
         if (state.seoData) {
             zip.file('Listing-Metadata.json', JSON.stringify(state.seoData, null, 2));
             const txt = `TPT LISTING METADATA\n====================\n\nTitle: ${state.seoData.title}\n\nDescription:\n${state.seoData.description}\n\nPrimary Keywords: ${state.seoData.primaryKeywords?.join(', ')}\nGrades: ${state.seoData.grades}\nSubject: ${state.seoData.subject}\nPrice: ${state.seoData.price}\nStandards: ${state.seoData.standards}`;
             zip.file('Listing-Metadata.txt', txt);
         }
         
-        // 5. Credits
+        // Credits
         const credits = `CREDITS & TERMS OF USE\n======================\n\n© ${new Date().getFullYear()} ${storeName}. All rights reserved.\n\nTERMS OF USE:\n- Licensed for original downloader only\n- Single classroom use only\n- No redistribution or resale\n- No uploading to public servers`;
         zip.file('Credits-and-Terms.txt', credits);
         
-        // Download ZIP
-        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // ✅ สร้าง ZIP blob
+        const zipBlob = await zip.generateAsync({ 
+            type: 'blob', 
+            compression: 'DEFLATE', 
+            compressionOptions: { level: 6 } 
+        });
+        
+        // ✅ ใช้ helper function
+        const filename = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
+        const success = downloadBlob(zipBlob, filename);
         
         hideLoading();
-        showToast('✅ Export ZIP Package สำเร็จ!');
+        
+        if (success) {
+            showToast('✅ Export ZIP Package สำเร็จ!');
+        } else {
+            showToast(`⚠️ สร้าง ZIP สำเร็จ แต่ไม่สามารถดาวน์โหลดอัตโนมัติได้`, 'error');
+        }
         
     } catch (error) {
-        // Cleanup
         document.querySelectorAll('div[style*="left: -9999px"]').forEach(c => c.remove());
         hideLoading();
         showToast(`❌ Export ZIP ล้มเหลว: ${error.message}`, 'error');
