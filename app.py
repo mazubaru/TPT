@@ -20,7 +20,7 @@ import re
 # Gemini Model Configuration
 # หมายเหตุ: ใช้ gemini-3.5-flash ที่เสถียรที่สุด
 # หากต้องการใช้รุ่นอื่น ให้เปลี่ยนชื่อโมเดลตรงนี้
-GEMINI_MODEL = 'gemini-3.5-flash'
+GEMINI_MODEL = 'gemini-3.1-flash-lite'
 
 THEMES = {
     "Clean Classroom": {
