@@ -13,6 +13,7 @@
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.min.js"></script>
     
     <style>
         :root {
@@ -2033,175 +2034,290 @@ Return ONLY valid JSON.`;
         // ============================================
         
         async function exportPDF(type) {
-            if (state.worksheets.length === 0) {
-                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
-                return;
+    if (state.worksheets.length === 0) {
+        showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+        return;
+    }
+    
+    showLoading(`กำลัง Export ${type}...`, 'Converting HTML to PDF');
+    
+    try {
+        const paperSize = elements.paperSize.value;
+        const format = paperSize === 'a4' ? 'a4' : 'letter';
+        
+        // สร้าง container ชั่วคราวสำหรับ export
+        const exportContainer = document.createElement('div');
+        exportContainer.style.position = 'absolute';
+        exportContainer.style.left = '-9999px';
+        exportContainer.style.top = '0';
+        exportContainer.style.width = paperSize === 'a4' ? '210mm' : '215.9mm';
+        exportContainer.style.background = 'white';
+        document.body.appendChild(exportContainer);
+        
+        const storeName = elements.storeName.value || 'MathFun Academy';
+        
+        // สร้างเนื้อหาตามประเภทที่เลือก
+        if (type === 'worksheet' || type === 'preview') {
+            // หน้าปก
+            if (elements.includeCover.checked) {
+                const coverPage = document.createElement('div');
+                coverPage.className = 'worksheet-page';
+                coverPage.style.textAlign = 'center';
+                coverPage.style.padding = '80px 40px';
+                coverPage.style.pageBreakAfter = 'always';
+                coverPage.innerHTML = `
+                    <div style="font-size: 72px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
+                    <h1 style="font-family: 'Fredoka', sans-serif; font-size: 36px; color: #7C3AED; margin-bottom: 16px;">
+                        ${gameConfigs[state.selectedGame].name} Worksheets
+                    </h1>
+                    <p style="font-size: 18px; color: #6B7280; margin-bottom: 32px;">
+                        Grade ${elements.gradeLevel.value} • ${elements.difficulty.value.charAt(0).toUpperCase() + elements.difficulty.value.slice(1)} Level
+                    </p>
+                    <p style="font-size: 16px; color: #6B7280;">
+                        ${state.worksheets.length} Unique Puzzles + Answer Keys
+                    </p>
+                    <div style="margin-top: 60px; padding-top: 24px; border-top: 2px dashed #E5E7EB;">
+                        <p style="font-size: 14px; color: #6B7280;">© ${new Date().getFullYear()} ${storeName}. All rights reserved.</p>
+                    </div>
+                `;
+                exportContainer.appendChild(coverPage);
             }
             
-            showLoading(`กำลัง Export ${type}...`, 'Creating PDF');
+            // หน้าใบงาน
+            state.worksheets.forEach((puzzle, idx) => {
+                const page = document.createElement('div');
+                page.className = 'worksheet-page';
+                page.style.pageBreakAfter = 'always';
+                
+                let content = '';
+                switch(state.selectedGame) {
+                    case 'sudoku': content = renderSudoku(puzzle, idx); break;
+                    case 'kenken': content = renderKenKen(puzzle, idx); break;
+                    case 'cryptogram': content = renderCryptogram(puzzle, idx); break;
+                    case 'kakuro': content = renderKakuro(puzzle, idx); break;
+                    case 'wordsearch': content = renderWordSearch(puzzle, idx); break;
+                    case 'pixelart': content = renderPixelArt(puzzle, idx); break;
+                    case 'crossword': content = renderCrossword(puzzle, idx); break;
+                }
+                
+                page.innerHTML = `
+                    <div class="worksheet-header">
+                        <div class="worksheet-title">${puzzle.title || `${gameConfigs[state.selectedGame].name} #${idx + 1}`}</div>
+                        <div class="worksheet-meta">
+                            <span>Name: ____________</span>
+                            <span>Date: ______</span>
+                            <span>Score: ____/${state.worksheets.length}</span>
+                        </div>
+                    </div>
+                    <div class="worksheet-directions">
+                        <strong>Directions:</strong> ${getDirections(state.selectedGame)}
+                    </div>
+                    ${content}
+                    <div class="worksheet-footer">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Page ${idx + 1} of ${state.worksheets.length}</span>
+                    </div>
+                `;
+                
+                // ถ้าเป็น preview ให้เพิ่ม watermark
+                if (type === 'preview') {
+                    const watermark = document.createElement('div');
+                    watermark.style.position = 'absolute';
+                    watermark.style.top = '50%';
+                    watermark.style.left = '50%';
+                    watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
+                    watermark.style.fontSize = '80px';
+                    watermark.style.color = 'rgba(124, 58, 237, 0.15)';
+                    watermark.style.fontFamily = 'Fredoka, sans-serif';
+                    watermark.style.fontWeight = 'bold';
+                    watermark.style.pointerEvents = 'none';
+                    watermark.textContent = 'PREVIEW';
+                    page.style.position = 'relative';
+                    page.appendChild(watermark);
+                }
+                
+                exportContainer.appendChild(page);
+            });
+        }
+        
+        // หน้าเฉลย
+        if ((type === 'worksheet' || type === 'answerkey') && elements.includeAnswerKey.checked) {
+            const answerKeyPage = document.createElement('div');
+            answerKeyPage.className = 'worksheet-page';
+            answerKeyPage.innerHTML = `
+                <div class="worksheet-header">
+                    <div class="worksheet-title">🔑 Answer Key</div>
+                    <div class="worksheet-meta">
+                        <span>Teacher Use Only</span>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    ${state.worksheets.map((puzzle, idx) => renderAnswerKey(puzzle, idx, state.selectedGame)).join('')}
+                </div>
+                <div class="worksheet-footer">
+                    <span>© ${new Date().getFullYear()} ${storeName}</span>
+                    <span>Answer Key</span>
+                </div>
+            `;
+            exportContainer.appendChild(answerKeyPage);
+        }
+        
+        // ใช้ html2pdf แปลงเป็น PDF
+        const opt = {
+            margin: 0,
+            filename: `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2,
+                useCORS: true,
+                letterRendering: true
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: format, 
+                orientation: 'portrait' 
+            },
+            pagebreak: { mode: ['css', 'legacy'], avoid: ['.worksheet-page'] }
+        };
+        
+        await html2pdf().from(exportContainer).set(opt).save();
+        
+        // ลบ container ชั่วคราว
+        document.body.removeChild(exportContainer);
+        
+        hideLoading();
+        showToast(`✅ Export ${type} สำเร็จ!`);
+        
+    } catch (error) {
+        hideLoading();
+        showToast(`❌ Export ล้มเหลว: ${error.message}`, 'error');
+        console.error(error);
+    }
+}
+        
+        async function exportZIP() {
+    if (state.worksheets.length === 0) {
+        showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+        return;
+    }
+    
+    showLoading('กำลังสร้าง ZIP Package...', 'Bundling files');
+    
+    try {
+        const zip = new JSZip();
+        const storeName = elements.storeName.value || 'MathFun Academy';
+        const paperSize = elements.paperSize.value;
+        const format = paperSize === 'a4' ? 'a4' : 'letter';
+        
+        // Helper function สำหรับสร้าง PDF จาก HTML
+        async function createPdfFromHtml(htmlContent, filename) {
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px';
+            tempContainer.style.top = '0';
+            tempContainer.style.width = paperSize === 'a4' ? '210mm' : '215.9mm';
+            tempContainer.style.background = 'white';
+            tempContainer.innerHTML = htmlContent;
+            document.body.appendChild(tempContainer);
             
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: elements.paperSize.value === 'a4' ? 'a4' : 'letter'
-                });
-                
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const pageHeight = doc.internal.pageSize.getHeight();
-                const margin = 15;
-                const contentWidth = pageWidth - (margin * 2);
-                
-                // Cover page
-                if (type === 'worksheet' && elements.includeCover.checked) {
-                    doc.setFontSize(32);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`${gameConfigs[state.selectedGame].name} Worksheets`, pageWidth / 2, 80, { align: 'center' });
-                    
-                    doc.setFontSize(16);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(`Grade ${elements.gradeLevel.value} • ${elements.difficulty.value}`, pageWidth / 2, 100, { align: 'center' });
-                    doc.text(`${state.worksheets.length} Unique Puzzles + Answer Keys`, pageWidth / 2, 115, { align: 'center' });
-                    
-                    doc.setFontSize(10);
-                    doc.text(`© ${new Date().getFullYear()} ${elements.storeName.value}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
-                    
-                    doc.addPage();
-                }
-                
-                // Worksheet pages
-                state.worksheets.forEach((puzzle, idx) => {
-                    if (idx > 0 || (type === 'worksheet' && elements.includeCover.checked)) {
-                        if (idx > 0) doc.addPage();
-                    }
-                    
-                    // Header
-                    doc.setFontSize(18);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(puzzle.title || `${gameConfigs[state.selectedGame].name} #${idx + 1}`, margin, 25);
-                    
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(`Name: ____________  Date: ______  Score: ____/${state.worksheets.length}`, pageWidth - margin, 25, { align: 'right' });
-                    
-                    // Directions
-                    doc.setFillColor(254, 243, 199);
-                    doc.rect(margin, 32, contentWidth, 20, 'F');
-                    doc.setFontSize(10);
-                    doc.text(`Directions: ${getDirections(state.selectedGame)}`, margin + 3, 42, { maxWidth: contentWidth - 6 });
-                    
-                    // Content placeholder
-                    doc.setFontSize(12);
-                    doc.text(`[Puzzle #${idx + 1} - See HTML preview for full layout]`, pageWidth / 2, 80, { align: 'center' });
-                    
-                    // Footer
-                    doc.setFontSize(8);
-                    doc.text(`© ${new Date().getFullYear()} ${elements.storeName.value}`, margin, pageHeight - 10);
-                    doc.text(`Page ${idx + 1} of ${state.worksheets.length}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-                });
-                
-                // Answer key
-                if (type !== 'answerkey' && elements.includeAnswerKey.checked) {
-                    doc.addPage();
-                    doc.setFontSize(18);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('🔑 Answer Key', margin, 25);
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text('Teacher Use Only', pageWidth - margin, 25, { align: 'right' });
-                    
-                    state.worksheets.forEach((puzzle, idx) => {
-                        const y = 40 + (idx * 30);
-                        if (y > pageHeight - 30) {
-                            doc.addPage();
-                        }
-                        doc.setFontSize(12);
-                        doc.setFont('helvetica', 'bold');
-                        doc.text(`#${idx + 1} - ${puzzle.title || gameConfigs[state.selectedGame].name}`, margin, y);
-                        doc.setFontSize(10);
-                        doc.setFont('helvetica', 'normal');
-                        
-                        if (puzzle.solution) {
-                            doc.text('Solution: See grid in HTML preview', margin, y + 8);
-                        } else if (puzzle.message) {
-                            doc.text(`Answer: ${puzzle.message}`, margin, y + 8);
-                        }
-                    });
-                }
-                
-                // Save
-                const filename = `${elements.storeName.value.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`;
-                doc.save(filename);
-                
-                hideLoading();
-                showToast(`✅ Export ${type} สำเร็จ!`);
-                
-            } catch (error) {
-                hideLoading();
-                showToast(`❌ Export ล้มเหลว: ${error.message}`, 'error');
-                console.error(error);
+            const opt = {
+                margin: 0,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: format, orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+            
+            const pdfBlob = await html2pdf().from(tempContainer).set(opt).output('blob');
+            document.body.removeChild(tempContainer);
+            return pdfBlob;
+        }
+        
+        // 1. สร้าง Worksheet PDF
+        let worksheetHtml = '';
+        
+        if (elements.includeCover.checked) {
+            worksheetHtml += `
+                <div class="worksheet-page" style="text-align: center; padding: 80px 40px; page-break-after: always;">
+                    <div style="font-size: 72px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
+                    <h1 style="font-family: 'Fredoka', sans-serif; font-size: 36px; color: #7C3AED; margin-bottom: 16px;">
+                        ${gameConfigs[state.selectedGame].name} Worksheets
+                    </h1>
+                    <p style="font-size: 18px; color: #6B7280;">Grade ${elements.gradeLevel.value} • ${state.worksheets.length} Puzzles</p>
+                </div>
+            `;
+        }
+        
+        state.worksheets.forEach((puzzle, idx) => {
+            let content = '';
+            switch(state.selectedGame) {
+                case 'sudoku': content = renderSudoku(puzzle, idx); break;
+                case 'kenken': content = renderKenKen(puzzle, idx); break;
+                case 'cryptogram': content = renderCryptogram(puzzle, idx); break;
+                case 'kakuro': content = renderKakuro(puzzle, idx); break;
+                case 'wordsearch': content = renderWordSearch(puzzle, idx); break;
+                case 'pixelart': content = renderPixelArt(puzzle, idx); break;
+                case 'crossword': content = renderCrossword(puzzle, idx); break;
+            }
+            
+            worksheetHtml += `
+                <div class="worksheet-page" style="page-break-after: always;">
+                    <div class="worksheet-header">
+                        <div class="worksheet-title">${puzzle.title || `Puzzle #${idx + 1}`}</div>
+                        <div class="worksheet-meta">
+                            <span>Name: ____________</span>
+                            <span>Date: ______</span>
+                        </div>
+                    </div>
+                    <div class="worksheet-directions">
+                        <strong>Directions:</strong> ${getDirections(state.selectedGame)}
+                    </div>
+                    ${content}
+                    <div class="worksheet-footer">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Page ${idx + 1}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const worksheetPdf = await createPdfFromHtml(worksheetHtml, 'Worksheet.pdf');
+        zip.file('Worksheet.pdf', worksheetPdf);
+        
+        // 2. สร้าง Answer Key PDF
+        if (elements.includeAnswerKey.checked) {
+            let answerKeyHtml = `
+                <div class="worksheet-page">
+                    <div class="worksheet-header">
+                        <div class="worksheet-title">🔑 Answer Key</div>
+                        <div class="worksheet-meta"><span>Teacher Use Only</span></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        ${state.worksheets.map((puzzle, idx) => renderAnswerKey(puzzle, idx, state.selectedGame)).join('')}
+                    </div>
+                </div>
+            `;
+            const answerKeyPdf = await createPdfFromHtml(answerKeyHtml, 'Answer-Key.pdf');
+            zip.file('Answer-Key.pdf', answerKeyPdf);
+        }
+        
+        // 3. เพิ่ม Thumbnails (ถ้ามี)
+        const thumbnailCanvases = document.querySelectorAll('#thumbnailGrid canvas');
+        for (let i = 0; i < thumbnailCanvases.length; i++) {
+            const canvas = thumbnailCanvases[i];
+            if (canvas) {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                zip.file(`Thumbnail-${i + 1}.png`, blob);
             }
         }
         
-        async function exportZIP() {
-            if (state.worksheets.length === 0) {
-                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
-                return;
-            }
+        // 4. เพิ่ม Listing Metadata
+        if (state.seoData) {
+            const metadata = JSON.stringify(state.seoData, null, 2);
+            zip.file('Listing-Metadata.json', metadata);
             
-            showLoading('กำลังสร้าง ZIP Package...', 'Bundling files');
-            
-            try {
-                const zip = new JSZip();
-                const { jsPDF } = window.jspdf;
-                
-                // 1. Worksheet PDF
-                const worksheetDoc = new jsPDF();
-                worksheetDoc.setFontSize(20);
-                worksheetDoc.text(`${gameConfigs[state.selectedGame].name} Worksheets`, 20, 30);
-                worksheetDoc.setFontSize(12);
-                worksheetDoc.text(`Grade ${elements.gradeLevel.value} • ${state.worksheets.length} Puzzles`, 20, 45);
-                state.worksheets.forEach((p, i) => {
-                    worksheetDoc.addPage();
-                    worksheetDoc.setFontSize(16);
-                    worksheetDoc.text(p.title || `Puzzle #${i + 1}`, 20, 30);
-                    worksheetDoc.setFontSize(10);
-                    worksheetDoc.text('[Full layout in HTML preview]', 20, 50);
-                });
-                const worksheetPdf = worksheetDoc.output('arraybuffer');
-                zip.file('Worksheet.pdf', worksheetPdf);
-                
-                // 2. Answer Key PDF
-                if (elements.includeAnswerKey.checked) {
-                    const answerDoc = new jsPDF();
-                    answerDoc.setFontSize(20);
-                    answerDoc.text('Answer Key', 20, 30);
-                    state.worksheets.forEach((p, i) => {
-                        answerDoc.addPage();
-                        answerDoc.setFontSize(14);
-                        answerDoc.text(`#${i + 1} - ${p.title || 'Puzzle'}`, 20, 30);
-                    });
-                    const answerPdf = answerDoc.output('arraybuffer');
-                    zip.file('Answer-Key.pdf', answerPdf);
-                }
-                
-                // 3. Thumbnails
-                const thumbnailCanvases = document.querySelectorAll('#thumbnailGrid canvas');
-                for (let i = 0; i < thumbnailCanvases.length; i++) {
-                    const canvas = thumbnailCanvases[i];
-                    if (canvas) {
-                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                        zip.file(`Thumbnail-${i + 1}.png`, blob);
-                    }
-                }
-                
-                // 4. Listing metadata
-                if (state.seoData) {
-                    const metadata = JSON.stringify(state.seoData, null, 2);
-                    zip.file('Listing-Metadata.json', metadata);
-                    
-                    const txtContent = `
+            const txtContent = `
 TPT LISTING METADATA
 ====================
 
@@ -2215,46 +2331,45 @@ Grades: ${state.seoData.grades}
 Subject: ${state.seoData.subject}
 Price: ${state.seoData.price}
 Standards: ${state.seoData.standards}
-                    `.trim();
-                    zip.file('Listing-Metadata.txt', txtContent);
-                }
-                
-                // 5. Credits & Terms
-                const credits = `
+            `.trim();
+            zip.file('Listing-Metadata.txt', txtContent);
+        }
+        
+        // 5. เพิ่ม Credits & Terms
+        const credits = `
 CREDITS & TERMS OF USE
 ======================
 
-© ${new Date().getFullYear()} ${elements.storeName.value}. All rights reserved.
+© ${new Date().getFullYear()} ${storeName}. All rights reserved.
 
 TERMS OF USE:
 - This product is licensed for use by the original downloader only.
 - Single classroom use only.
 - No redistribution, sharing, or resale.
 - No uploading to public servers or websites.
-- For additional licenses, please purchase extra copies.
 
 Thank you for your support!
-                `.trim();
-                zip.file('Credits-and-Terms.txt', credits);
-                
-                // Generate ZIP
-                const zipBlob = await zip.generateAsync({ type: 'blob' });
-                const url = URL.createObjectURL(zipBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${elements.storeName.value.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                hideLoading();
-                showToast('✅ Export ZIP Package สำเร็จ!');
-                
-            } catch (error) {
-                hideLoading();
-                showToast(`❌ Export ZIP ล้มเหลว: ${error.message}`, 'error');
-                console.error(error);
-            }
-        }
+        `.trim();
+        zip.file('Credits-and-Terms.txt', credits);
+        
+        // Generate และดาวน์โหลด ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        hideLoading();
+        showToast('✅ Export ZIP Package สำเร็จ!');
+        
+    } catch (error) {
+        hideLoading();
+        showToast(`❌ Export ZIP ล้มเหลว: ${error.message}`, 'error');
+        console.error(error);
+    }
+}
         
         // ============================================
         // UTILITY FUNCTIONS
