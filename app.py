@@ -397,7 +397,7 @@ def generate_pdf(worksheet_data, theme_colors, paper_size="letter", include_answ
         
         # Header with color
         c.setFillColor(HexColor(theme_colors['primary']))
-        c.rect(0, height - *inch, width, *inch, fill=1)
+        c.rect(0, height - 1.5*inch, width, 1.5*inch, fill=1)
         
         # Title
         c.setFillColor(HexColor('#FFFFFF'))
