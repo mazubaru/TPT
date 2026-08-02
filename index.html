@@ -2033,61 +2033,113 @@ Return ONLY valid JSON.`;
         // EXPORT FUNCTIONS
         // ============================================
         
-        async function exportPDF(type) {
+       async function exportPDF(type) {
     if (state.worksheets.length === 0) {
         showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
         return;
     }
     
-    showLoading(`กำลัง Export ${type}...`, 'Converting HTML to PDF');
+    showLoading(`กำลัง Export ${type}...`, 'Rendering pages one by one');
     
     try {
+        const { jsPDF } = window.jspdf;
         const paperSize = elements.paperSize.value;
         const format = paperSize === 'a4' ? 'a4' : 'letter';
         
-        // สร้าง container ชั่วคราวสำหรับ export
-        const exportContainer = document.createElement('div');
-        exportContainer.style.position = 'absolute';
-        exportContainer.style.left = '-9999px';
-        exportContainer.style.top = '0';
-        exportContainer.style.width = paperSize === 'a4' ? '210mm' : '215.9mm';
-        exportContainer.style.background = 'white';
-        document.body.appendChild(exportContainer);
+        // สร้าง PDF ว่างไว้ก่อน
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: format
+        });
         
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
         const storeName = elements.storeName.value || 'MathFun Academy';
         
-        // สร้างเนื้อหาตามประเภทที่เลือก
-        if (type === 'worksheet' || type === 'preview') {
-            // หน้าปก
-            if (elements.includeCover.checked) {
-                const coverPage = document.createElement('div');
-                coverPage.className = 'worksheet-page';
-                coverPage.style.textAlign = 'center';
-                coverPage.style.padding = '80px 40px';
-                coverPage.style.pageBreakAfter = 'always';
-                coverPage.innerHTML = `
-                    <div style="font-size: 72px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
-                    <h1 style="font-family: 'Fredoka', sans-serif; font-size: 36px; color: #7C3AED; margin-bottom: 16px;">
+        // สร้าง container ชั่วคราวสำหรับ render ทีละหน้า
+        const tempContainer = document.createElement('div');
+        tempContainer.style.cssText = `
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: ${paperSize === 'a4' ? '210mm' : '215.9mm'};
+            background: white;
+            z-index: -1;
+        `;
+        document.body.appendChild(tempContainer);
+        
+        // Helper: render หน้าเดียวเป็น canvas แล้วเพิ่มเข้า PDF
+        async function renderPageToPdf(htmlContent, isFirst) {
+            tempContainer.innerHTML = htmlContent;
+            
+            // รอให้ fonts โหลดเสร็จ
+            await document.fonts.ready;
+            
+            // รอเล็กน้อยให้ layout สมบูรณ์
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const element = tempContainer.firstElementChild;
+            
+            // ใช้ html2canvas โดยตรง (ควบคุม memory ได้ดีกว่า html2pdf)
+            const canvas = await html2canvas(element, {
+                scale: 1.5,              // ลดจาก 2 → 1.5 (ประหยัด memory)
+                useCORS: true,
+                allowTaint: true,
+                logging: false,          // ปิด log ที่ไม่จำเป็น
+                backgroundColor: '#ffffff',
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+                removeContainer: true
+            });
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.85);
+            
+            if (!isFirst) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+            
+            // 🔑 Release memory ทันที
+            canvas.width = 0;
+            canvas.height = 0;
+            tempContainer.innerHTML = '';
+        }
+        
+        let isFirst = true;
+        
+        // === หน้าปก ===
+        if (type !== 'answerkey' && elements.includeCover.checked) {
+            const coverHtml = `
+                <div style="width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; 
+                            min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; 
+                            padding: 60px 40px; text-align: center; 
+                            font-family: 'Fredoka', sans-serif; box-sizing: border-box;
+                            display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="font-size: 80px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
+                    <h1 style="font-size: 36px; color: #7C3AED; margin-bottom: 16px;">
                         ${gameConfigs[state.selectedGame].name} Worksheets
                     </h1>
                     <p style="font-size: 18px; color: #6B7280; margin-bottom: 32px;">
-                        Grade ${elements.gradeLevel.value} • ${elements.difficulty.value.charAt(0).toUpperCase() + elements.difficulty.value.slice(1)} Level
+                        Grade ${elements.gradeLevel.value} • ${elements.difficulty.value}
                     </p>
                     <p style="font-size: 16px; color: #6B7280;">
                         ${state.worksheets.length} Unique Puzzles + Answer Keys
                     </p>
-                    <div style="margin-top: 60px; padding-top: 24px; border-top: 2px dashed #E5E7EB;">
-                        <p style="font-size: 14px; color: #6B7280;">© ${new Date().getFullYear()} ${storeName}. All rights reserved.</p>
+                    <div style="margin-top: 60px; padding-top: 24px; border-top: 2px dashed #E5E7EB; width: 100%;">
+                        <p style="font-size: 14px; color: #6B7280;">© ${new Date().getFullYear()} ${storeName}</p>
                     </div>
-                `;
-                exportContainer.appendChild(coverPage);
-            }
+                </div>
+            `;
+            await renderPageToPdf(coverHtml, isFirst);
+            isFirst = false;
             
-            // หน้าใบงาน
-            state.worksheets.forEach((puzzle, idx) => {
-                const page = document.createElement('div');
-                page.className = 'worksheet-page';
-                page.style.pageBreakAfter = 'always';
+            // อัพเดท progress
+            elements.progressFill.style.width = '10%';
+        }
+        
+        // === หน้าใบงาน (render ทีละหน้า) ===
+        if (type !== 'answerkey') {
+            for (let idx = 0; idx < state.worksheets.length; idx++) {
+                const puzzle = state.worksheets[idx];
                 
                 let content = '';
                 switch(state.selectedGame) {
@@ -2100,102 +2152,110 @@ Return ONLY valid JSON.`;
                     case 'crossword': content = renderCrossword(puzzle, idx); break;
                 }
                 
-                page.innerHTML = `
-                    <div class="worksheet-header">
-                        <div class="worksheet-title">${puzzle.title || `${gameConfigs[state.selectedGame].name} #${idx + 1}`}</div>
-                        <div class="worksheet-meta">
-                            <span>Name: ____________</span>
-                            <span>Date: ______</span>
-                            <span>Score: ____/${state.worksheets.length}</span>
+                const pageHtml = `
+                    <div style="width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; 
+                                min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; 
+                                padding: 30px 35px; font-family: 'Comic Neue', 'Quicksand', sans-serif; 
+                                box-sizing: border-box; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; 
+                                    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px dashed #A78BFA;">
+                            <div style="font-family: 'Fredoka', sans-serif; font-size: 22px; font-weight: 600; color: #7C3AED;">
+                                ${puzzle.title || `${gameConfigs[state.selectedGame].name} #${idx + 1}`}
+                            </div>
+                            <div style="display: flex; gap: 12px; font-size: 12px; color: #6B7280;">
+                                <span style="background: #F3F4F6; padding: 3px 10px; border-radius: 12px;">Name: ____________</span>
+                                <span style="background: #F3F4F6; padding: 3px 10px; border-radius: 12px;">Date: ______</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="worksheet-directions">
-                        <strong>Directions:</strong> ${getDirections(state.selectedGame)}
-                    </div>
-                    ${content}
-                    <div class="worksheet-footer">
-                        <span>© ${new Date().getFullYear()} ${storeName}</span>
-                        <span>Page ${idx + 1} of ${state.worksheets.length}</span>
+                        <div style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); padding: 14px 18px; 
+                                    border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; 
+                                    border-left: 4px solid #FBBF24;">
+                            <strong>Directions:</strong> ${getDirections(state.selectedGame)}
+                        </div>
+                        ${content}
+                        <div style="margin-top: 20px; padding-top: 10px; border-top: 1px dashed #E5E7EB; 
+                                    display: flex; justify-content: space-between; font-size: 10px; color: #6B7280;">
+                            <span>© ${new Date().getFullYear()} ${storeName}</span>
+                            <span>Page ${idx + 1} of ${state.worksheets.length}</span>
+                        </div>
                     </div>
                 `;
                 
-                // ถ้าเป็น preview ให้เพิ่ม watermark
-                if (type === 'preview') {
-                    const watermark = document.createElement('div');
-                    watermark.style.position = 'absolute';
-                    watermark.style.top = '50%';
-                    watermark.style.left = '50%';
-                    watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
-                    watermark.style.fontSize = '80px';
-                    watermark.style.color = 'rgba(124, 58, 237, 0.15)';
-                    watermark.style.fontFamily = 'Fredoka, sans-serif';
-                    watermark.style.fontWeight = 'bold';
-                    watermark.style.pointerEvents = 'none';
-                    watermark.textContent = 'PREVIEW';
-                    page.style.position = 'relative';
-                    page.appendChild(watermark);
-                }
+                await renderPageToPdf(pageHtml, isFirst);
+                isFirst = false;
                 
-                exportContainer.appendChild(page);
-            });
+                // อัพเดท progress
+                const progress = ((idx + 1) / state.worksheets.length) * 80 + 10;
+                elements.progressFill.style.width = `${progress}%`;
+                elements.loadingSub.textContent = `Rendering page ${idx + 1} of ${state.worksheets.length}...`;
+                
+                // ปล่อย main thread ให้ browser ได้หายใจ
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
         }
         
-        // หน้าเฉลย
-        if ((type === 'worksheet' || type === 'answerkey') && elements.includeAnswerKey.checked) {
-            const answerKeyPage = document.createElement('div');
-            answerKeyPage.className = 'worksheet-page';
-            answerKeyPage.innerHTML = `
-                <div class="worksheet-header">
-                    <div class="worksheet-title">🔑 Answer Key</div>
-                    <div class="worksheet-meta">
-                        <span>Teacher Use Only</span>
+        // === หน้าเฉลย ===
+        if (type !== 'preview' && elements.includeAnswerKey.checked) {
+            let answerContent = '';
+            state.worksheets.forEach((puzzle, idx) => {
+                answerContent += renderAnswerKey(puzzle, idx, state.selectedGame);
+            });
+            
+            const answerHtml = `
+                <div style="width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; 
+                            min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; 
+                            padding: 30px 35px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; 
+                                margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px dashed #A78BFA;">
+                        <div style="font-family: 'Fredoka', sans-serif; font-size: 22px; font-weight: 600; color: #7C3AED;">
+                            🔑 Answer Key
+                        </div>
+                        <span style="background: #F3F4F6; padding: 3px 10px; border-radius: 12px; font-size: 12px; color: #6B7280;">
+                            Teacher Use Only
+                        </span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        ${answerContent}
+                    </div>
+                    <div style="margin-top: 20px; padding-top: 10px; border-top: 1px dashed #E5E7EB; 
+                                display: flex; justify-content: space-between; font-size: 10px; color: #6B7280;">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Answer Key</span>
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                    ${state.worksheets.map((puzzle, idx) => renderAnswerKey(puzzle, idx, state.selectedGame)).join('')}
-                </div>
-                <div class="worksheet-footer">
-                    <span>© ${new Date().getFullYear()} ${storeName}</span>
-                    <span>Answer Key</span>
-                </div>
             `;
-            exportContainer.appendChild(answerKeyPage);
+            await renderPageToPdf(answerHtml, isFirst);
         }
         
-        // ใช้ html2pdf แปลงเป็น PDF
-        const opt = {
-            margin: 0,
-            filename: `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2,
-                useCORS: true,
-                letterRendering: true
-            },
-            jsPDF: { 
-                unit: 'mm', 
-                format: format, 
-                orientation: 'portrait' 
-            },
-            pagebreak: { mode: ['css', 'legacy'], avoid: ['.worksheet-page'] }
-        };
+        // ลบ container ทิ้ง
+        document.body.removeChild(tempContainer);
         
-        await html2pdf().from(exportContainer).set(opt).save();
+        // Save PDF
+        const filename = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`;
+        pdf.save(filename);
         
-        // ลบ container ชั่วคราว
-        document.body.removeChild(exportContainer);
-        
+        elements.progressFill.style.width = '100%';
         hideLoading();
         showToast(`✅ Export ${type} สำเร็จ!`);
         
+        setTimeout(() => {
+            elements.progressBar.style.display = 'none';
+            elements.progressFill.style.width = '0%';
+        }, 1000);
+        
     } catch (error) {
+        // Cleanup เสมอแม้เกิด error
+        const tempContainers = document.querySelectorAll('div[style*="left: -9999px"]');
+        tempContainers.forEach(c => c.remove());
+        
         hideLoading();
         showToast(`❌ Export ล้มเหลว: ${error.message}`, 'error');
-        console.error(error);
+        console.error('Export error:', error);
+        elements.progressBar.style.display = 'none';
     }
 }
         
-        async function exportZIP() {
+       async function exportZIP() {
     if (state.worksheets.length === 0) {
         showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
         return;
@@ -2206,50 +2266,44 @@ Return ONLY valid JSON.`;
     try {
         const zip = new JSZip();
         const storeName = elements.storeName.value || 'MathFun Academy';
+        
+        // ใช้ exportPDF ที่แก้แล้วเพื่อสร้าง blob แล้วเพิ่มเข้า zip
+        // วิธีนี้ประหยัด memory กว่า render ใหม่
+        
+        // 1. สร้าง Worksheet PDF (ใช้ jsPDF โดยตรง)
+        const { jsPDF } = window.jspdf;
         const paperSize = elements.paperSize.value;
         const format = paperSize === 'a4' ? 'a4' : 'letter';
         
-        // Helper function สำหรับสร้าง PDF จาก HTML
-        async function createPdfFromHtml(htmlContent, filename) {
-            const tempContainer = document.createElement('div');
-            tempContainer.style.position = 'absolute';
-            tempContainer.style.left = '-9999px';
-            tempContainer.style.top = '0';
-            tempContainer.style.width = paperSize === 'a4' ? '210mm' : '215.9mm';
-            tempContainer.style.background = 'white';
-            tempContainer.innerHTML = htmlContent;
-            document.body.appendChild(tempContainer);
-            
-            const opt = {
-                margin: 0,
-                filename: filename,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: 'mm', format: format, orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
-            };
-            
-            const pdfBlob = await html2pdf().from(tempContainer).set(opt).output('blob');
-            document.body.removeChild(tempContainer);
-            return pdfBlob;
-        }
+        const worksheetPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: format });
+        const pageWidth = worksheetPdf.internal.pageSize.getWidth();
+        const pageHeight = worksheetPdf.internal.pageSize.getHeight();
         
-        // 1. สร้าง Worksheet PDF
-        let worksheetHtml = '';
+        // สร้าง temp container
+        const tempContainer = document.createElement('div');
+        tempContainer.style.cssText = `position: fixed; left: -9999px; top: 0; 
+            width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; background: white; z-index: -1;`;
+        document.body.appendChild(tempContainer);
         
+        // Render หน้าปก
         if (elements.includeCover.checked) {
-            worksheetHtml += `
-                <div class="worksheet-page" style="text-align: center; padding: 80px 40px; page-break-after: always;">
-                    <div style="font-size: 72px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
-                    <h1 style="font-family: 'Fredoka', sans-serif; font-size: 36px; color: #7C3AED; margin-bottom: 16px;">
-                        ${gameConfigs[state.selectedGame].name} Worksheets
-                    </h1>
-                    <p style="font-size: 18px; color: #6B7280;">Grade ${elements.gradeLevel.value} • ${state.worksheets.length} Puzzles</p>
-                </div>
-            `;
+            tempContainer.innerHTML = `<div style="width: 100%; min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; padding: 60px; text-align: center; font-family: Fredoka, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box;">
+                <div style="font-size: 80px; margin-bottom: 24px;">${gameConfigs[state.selectedGame].emoji}</div>
+                <h1 style="font-size: 36px; color: #7C3AED;">${gameConfigs[state.selectedGame].name} Worksheets</h1>
+                <p style="font-size: 18px; color: #6B7280; margin-top: 16px;">Grade ${elements.gradeLevel.value} • ${state.worksheets.length} Puzzles</p>
+            </div>`;
+            await document.fonts.ready;
+            await new Promise(r => setTimeout(r, 100));
+            const canvas = await html2canvas(tempContainer.firstElementChild, {
+                scale: 1.5, useCORS: true, logging: false, backgroundColor: '#fff'
+            });
+            worksheetPdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageWidth, pageHeight);
+            canvas.width = canvas.height = 0;
         }
         
-        state.worksheets.forEach((puzzle, idx) => {
+        // Render ใบงานทีละหน้า
+        for (let idx = 0; idx < state.worksheets.length; idx++) {
+            const puzzle = state.worksheets[idx];
             let content = '';
             switch(state.selectedGame) {
                 case 'sudoku': content = renderSudoku(puzzle, idx); break;
@@ -2261,113 +2315,109 @@ Return ONLY valid JSON.`;
                 case 'crossword': content = renderCrossword(puzzle, idx); break;
             }
             
-            worksheetHtml += `
-                <div class="worksheet-page" style="page-break-after: always;">
-                    <div class="worksheet-header">
-                        <div class="worksheet-title">${puzzle.title || `Puzzle #${idx + 1}`}</div>
-                        <div class="worksheet-meta">
-                            <span>Name: ____________</span>
-                            <span>Date: ______</span>
-                        </div>
-                    </div>
-                    <div class="worksheet-directions">
-                        <strong>Directions:</strong> ${getDirections(state.selectedGame)}
-                    </div>
-                    ${content}
-                    <div class="worksheet-footer">
-                        <span>© ${new Date().getFullYear()} ${storeName}</span>
-                        <span>Page ${idx + 1}</span>
-                    </div>
+            tempContainer.innerHTML = `<div style="width: 100%; min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; padding: 30px 35px; font-family: 'Comic Neue', sans-serif; box-sizing: border-box;">
+                <div style="font-family: Fredoka; font-size: 22px; color: #7C3AED; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px dashed #A78BFA;">
+                    ${puzzle.title || `Puzzle #${idx + 1}`}
                 </div>
-            `;
-        });
-        
-        const worksheetPdf = await createPdfFromHtml(worksheetHtml, 'Worksheet.pdf');
-        zip.file('Worksheet.pdf', worksheetPdf);
-        
-        // 2. สร้าง Answer Key PDF
-        if (elements.includeAnswerKey.checked) {
-            let answerKeyHtml = `
-                <div class="worksheet-page">
-                    <div class="worksheet-header">
-                        <div class="worksheet-title">🔑 Answer Key</div>
-                        <div class="worksheet-meta"><span>Teacher Use Only</span></div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                        ${state.worksheets.map((puzzle, idx) => renderAnswerKey(puzzle, idx, state.selectedGame)).join('')}
-                    </div>
+                <div style="background: #FEF3C7; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #FBBF24; font-size: 13px;">
+                    <strong>Directions:</strong> ${getDirections(state.selectedGame)}
                 </div>
-            `;
-            const answerKeyPdf = await createPdfFromHtml(answerKeyHtml, 'Answer-Key.pdf');
-            zip.file('Answer-Key.pdf', answerKeyPdf);
+                ${content}
+                <div style="margin-top: 16px; padding-top: 8px; border-top: 1px dashed #E5E7EB; font-size: 10px; color: #6B7280; display: flex; justify-content: space-between;">
+                    <span>© ${new Date().getFullYear()} ${storeName}</span>
+                    <span>Page ${idx + 1}</span>
+                </div>
+            </div>`;
+            
+            await document.fonts.ready;
+            await new Promise(r => setTimeout(r, 50));
+            const canvas = await html2canvas(tempContainer.firstElementChild, {
+                scale: 1.5, useCORS: true, logging: false, backgroundColor: '#fff'
+            });
+            worksheetPdf.addPage();
+            worksheetPdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageWidth, pageHeight);
+            canvas.width = canvas.height = 0;
+            tempContainer.innerHTML = '';
+            
+            elements.loadingSub.textContent = `Worksheet page ${idx + 1}/${state.worksheets.length}`;
+            await new Promise(r => setTimeout(r, 30));
         }
         
-        // 3. เพิ่ม Thumbnails (ถ้ามี)
+        document.body.removeChild(tempContainer);
+        zip.file('Worksheet.pdf', worksheetPdf.output('arraybuffer'));
+        
+        // 2. Answer Key PDF (render แยก)
+        if (elements.includeAnswerKey.checked) {
+            const answerPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: format });
+            const tempContainer2 = document.createElement('div');
+            tempContainer2.style.cssText = `position: fixed; left: -9999px; top: 0; width: ${paperSize === 'a4' ? '210mm' : '215.9mm'}; background: white; z-index: -1;`;
+            document.body.appendChild(tempContainer2);
+            
+            let answerContent = '';
+            state.worksheets.forEach((puzzle, idx) => {
+                answerContent += renderAnswerKey(puzzle, idx, state.selectedGame);
+            });
+            
+            tempContainer2.innerHTML = `<div style="width: 100%; min-height: ${paperSize === 'a4' ? '297mm' : '279.4mm'}; padding: 30px 35px; box-sizing: border-box;">
+                <div style="font-family: Fredoka; font-size: 22px; color: #7C3AED; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px dashed #A78BFA;">
+                    🔑 Answer Key
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">${answerContent}</div>
+            </div>`;
+            
+            await document.fonts.ready;
+            await new Promise(r => setTimeout(r, 100));
+            const canvas = await html2canvas(tempContainer2.firstElementChild, {
+                scale: 1.5, useCORS: true, logging: false, backgroundColor: '#fff'
+            });
+            answerPdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageWidth, pageHeight);
+            canvas.width = canvas.height = 0;
+            document.body.removeChild(tempContainer2);
+            
+            zip.file('Answer-Key.pdf', answerPdf.output('arraybuffer'));
+        }
+        
+        // 3. Thumbnails
         const thumbnailCanvases = document.querySelectorAll('#thumbnailGrid canvas');
         for (let i = 0; i < thumbnailCanvases.length; i++) {
             const canvas = thumbnailCanvases[i];
             if (canvas) {
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                zip.file(`Thumbnail-${i + 1}.png`, blob);
+                if (blob) zip.file(`Thumbnail-${i + 1}.png`, blob);
             }
         }
         
-        // 4. เพิ่ม Listing Metadata
+        // 4. Metadata
         if (state.seoData) {
-            const metadata = JSON.stringify(state.seoData, null, 2);
-            zip.file('Listing-Metadata.json', metadata);
-            
-            const txtContent = `
-TPT LISTING METADATA
-====================
-
-Title: ${state.seoData.title}
-
-Description:
-${state.seoData.description}
-
-Primary Keywords: ${state.seoData.primaryKeywords?.join(', ')}
-Grades: ${state.seoData.grades}
-Subject: ${state.seoData.subject}
-Price: ${state.seoData.price}
-Standards: ${state.seoData.standards}
-            `.trim();
-            zip.file('Listing-Metadata.txt', txtContent);
+            zip.file('Listing-Metadata.json', JSON.stringify(state.seoData, null, 2));
+            const txt = `TPT LISTING METADATA\n====================\n\nTitle: ${state.seoData.title}\n\nDescription:\n${state.seoData.description}\n\nPrimary Keywords: ${state.seoData.primaryKeywords?.join(', ')}\nGrades: ${state.seoData.grades}\nSubject: ${state.seoData.subject}\nPrice: ${state.seoData.price}\nStandards: ${state.seoData.standards}`;
+            zip.file('Listing-Metadata.txt', txt);
         }
         
-        // 5. เพิ่ม Credits & Terms
-        const credits = `
-CREDITS & TERMS OF USE
-======================
-
-© ${new Date().getFullYear()} ${storeName}. All rights reserved.
-
-TERMS OF USE:
-- This product is licensed for use by the original downloader only.
-- Single classroom use only.
-- No redistribution, sharing, or resale.
-- No uploading to public servers or websites.
-
-Thank you for your support!
-        `.trim();
+        // 5. Credits
+        const credits = `CREDITS & TERMS OF USE\n======================\n\n© ${new Date().getFullYear()} ${storeName}. All rights reserved.\n\nTERMS OF USE:\n- Licensed for original downloader only\n- Single classroom use only\n- No redistribution or resale\n- No uploading to public servers`;
         zip.file('Credits-and-Terms.txt', credits);
         
-        // Generate และดาวน์โหลด ZIP
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        // Download ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `${storeName.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
         hideLoading();
         showToast('✅ Export ZIP Package สำเร็จ!');
         
     } catch (error) {
+        // Cleanup
+        document.querySelectorAll('div[style*="left: -9999px"]').forEach(c => c.remove());
         hideLoading();
         showToast(`❌ Export ZIP ล้มเหลว: ${error.message}`, 'error');
-        console.error(error);
+        console.error('ZIP export error:', error);
     }
 }
         
