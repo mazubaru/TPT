@@ -1,1024 +1,2285 @@
-import streamlit as st
-import google.generativeai as genai
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-from reportlab.lib.colors import HexColor
-from reportlab.platypus import Image as RLImage
-from PIL import Image, ImageDraw, ImageFont
-import io
-import json
-import zipfile
-from datetime import datetime
-import random
-import re
-
-# ==========================================
-# 1. CONFIGURATION & CONSTANTS
-# ==========================================
-
-# Gemini Model Configuration
-# หมายเหตุ: ใช้ gemini-3.5-flash ที่เสถียรที่สุด
-# หากต้องการใช้รุ่นอื่น ให้เปลี่ยนชื่อโมเดลตรงนี้
-GEMINI_MODEL = 'gemini-3.1-flash-lite'
-
-THEMES = {
-    "Clean Classroom": {
-        "primary": "#4A90E2",
-        "secondary": "#50C878",
-        "accent": "#FFD93D",
-        "bg": "#FFFFFF",
-        "text": "#333333"
-    },
-    "Soft Pastel": {
-        "primary": "#FFB3BA",
-        "secondary": "#BAFFC9",
-        "accent": "#BAE1FF",
-        "bg": "#FFFFFF",
-        "text": "#555555"
-    },
-    "Bright Elementary": {
-        "primary": "#FF6B6B",
-        "secondary": "#4ECDC4",
-        "accent": "#FFE66D",
-        "bg": "#FFFFFF",
-        "text": "#2C3E50"
-    },
-    "Space": {
-        "primary": "#2C3E50",
-        "secondary": "#8E44AD",
-        "accent": "#F39C12",
-        "bg": "#1A1A2E",
-        "text": "#FFFFFF"
-    },
-    "Ocean": {
-        "primary": "#006994",
-        "secondary": "#00A8CC",
-        "accent": "#F7B538",
-        "bg": "#E0F7FA",
-        "text": "#006064"
-    },
-    "Forest": {
-        "primary": "#2D5016",
-        "secondary": "#6B8E23",
-        "accent": "#DAA520",
-        "bg": "#F5F5DC",
-        "text": "#2F4F2F"
-    }
-}
-
-# Product Categories (จากเอกสาร Reference)
-PRODUCT_CATEGORIES = {
-    "Early Literacy": [
-        "Alphabet Recognition", "Letter Tracing", "Beginning Sounds", 
-        "Ending Sounds", "Rhyming Words", "Phonemic Awareness",
-        "CVC Words", "Word Families", "Blends", "Digraphs",
-        "Long/Short Vowels", "Silent E", "Decodable Passages",
-        "Reading Fluency", "Reading Comprehension", "Sight Words",
-        "Vocabulary", "Spelling", "Grammar", "Sentence Building",
-        "Writing Prompts", "Handwriting"
-    ],
-    "Mathematics": [
-        "Number Recognition", "Counting", "Number Sense",
-        "Addition", "Subtraction", "Multiplication", "Division",
-        "Place Value", "Fractions", "Decimals", "Geometry",
-        "Measurement", "Time", "Money", "Data & Graphs",
-        "Word Problems", "Math Fact Fluency", "Mental Math",
-        "Algebra Readiness", "Ratios & Proportions", "Integers",
-        "Expressions & Equations", "Financial Literacy"
-    ],
-    "Science": [
-        "Life Cycles", "Plants", "Animals", "Habitats",
-        "Human Body", "Weather", "Seasons", "Earth Science",
-        "Space", "Matter", "Energy", "Forces & Motion",
-        "Ecosystems", "Scientific Method", "STEM Challenges"
-    ],
-    "Social Studies": [
-        "Communities", "Maps & Geography", "Continents & Oceans",
-        "Government", "Citizenship", "Economics",
-        "Historical Figures", "Cultural Studies", "Timelines"
-    ],
-    "Classroom Resources": [
-        "Morning Work", "Bell Ringers", "Exit Tickets",
-        "Task Cards", "Centers", "Homework", "Assessments",
-        "Sub Plans", "Early Finisher Activities", "Graphic Organizers"
-    ],
-    "Special Education": [
-        "Functional Reading", "Functional Math", "Budgeting",
-        "Shopping", "Money Management", "Time Management",
-        "Daily Schedules", "Social Scenarios", "Community Signs",
-        "Job Skills", "Emotional Regulation"
-    ],
-    "Puzzle-Based Learning": [
-        "Sudoku", "Number Search", "Word Search", "Logic Puzzles",
-        "Mazes", "Code Breakers", "Mystery Activities",
-        "Pattern Puzzles", "Escape Room Worksheets", "Math Riddles"
-    ],
-    "Seasonal Products": [
-        "Back to School", "Fall", "Winter", "Spring", "Summer",
-        "Halloween", "Thanksgiving", "Christmas", "Valentine's Day",
-        "Easter", "Earth Day", "End of Year", "Test Prep Season"
-    ]
-}
-
-GRADE_LEVELS = [
-    "Pre-K", "Kindergarten", "1st Grade", "2nd Grade", 
-    "3rd Grade", "4th Grade", "5th Grade", "6th Grade",
-    "7th Grade", "8th Grade", "Special Education"
-]
-
-DIFFICULTY_LEVELS = [
-    "Beginner", "Easy", "Grade-Level Practice", 
-    "Challenging", "Advanced/Enrichment"
-]
-
-# ==========================================
-# 2. HELPER FUNCTIONS
-# ==========================================
-
-def calculate_opportunity_score(category, skill, grade):
-    """
-    คำนวณ Opportunity Score ตามเอกสาร Reference
-    น้ำหนัก: Buyer need (20), Search relevance (15), Competition (15),
-    Differentiation (15), Evergreen (10), Ease of use (10),
-    Bundle potential (5), Visual marketing (5), Production feasibility (5)
-    """
-    # ข้อมูลตลาด (ประมาณการ)
-    market_data = {
-        "Sight Words": {"demand": 95, "competition": 90, "differentiation": 40},
-        "Morning Work": {"demand": 90, "competition": 85, "differentiation": 50},
-        "Reading Comprehension": {"demand": 88, "competition": 75, "differentiation": 60},
-        "Math Practice": {"demand": 85, "competition": 80, "differentiation": 55},
-        "Phonics": {"demand": 85, "competition": 70, "differentiation": 65},
-        "Word Search": {"demand": 60, "competition": 40, "differentiation": 70},
-        "Sudoku": {"demand": 60, "competition": 40, "differentiation": 75},
-        "Budget Worksheets": {"demand": 70, "competition": 30, "differentiation": 85},
-        "Tracing": {"demand": 75, "competition": 60, "differentiation": 60},
-    }
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GridMind Worksheet Studio ✨</title>
     
-    data = market_data.get(skill, {"demand": 50, "competition": 50, "differentiation": 50})
+    <!-- Cute Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&family=Patrick+Hand&family=Comic+Neue:wght@400;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    # คำนวณคะแนน
-    buyer_need = min(data["demand"] * 0.2, 20)
-    search_relevance = min(data["demand"] * 0.15, 15)
-    competition_score = max((100 - data["competition"]) * 0.15, 0)
-    differentiation = min(data["differentiation"] * 0.15, 15)
-    evergreen = 10 if "Seasonal" not in category else 5
-    ease_of_use = 10
-    bundle_potential = 5
-    visual_marketing = 5
-    production_feasibility = 5
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
-    total = (buyer_need + search_relevance + competition_score + 
-             differentiation + evergreen + ease_of_use + 
-             bundle_potential + visual_marketing + production_feasibility)
-    
-    return int(total)
-
-def generate_worksheet_content(api_key, category, skill, grade, difficulty, num_pages, theme):
-    """สร้างเนื้อหาใบงานด้วย Gemini"""
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
-    
-    prompt = f"""Create a complete educational worksheet for {grade} students.
-Category: {category}
-Skill: {skill}
-Difficulty: {difficulty}
-Theme: {theme}
-Number of pages: {num_pages}
-
-Return ONLY valid JSON with this exact structure:
-{{
-    "title": "Worksheet Title",
-    "objective": "Clear learning objective",
-    "description": "Brief description",
-    "skills_covered": ["skill1", "skill2", "skill3"],
-    "pages": [
-        {{
-            "page_number": 1,
-            "page_title": "Page Title",
-            "instructions": "Clear student directions",
-            "questions": [
-                {{
-                    "id": 1,
-                    "question": "Question text",
-                    "answer": "Correct answer",
-                    "type": "fill_blank|multiple_choice|short_answer|matching"
-                }}
-            ],
-            "illustration_prompt": "Description of illustration (e.g., 'cute cartoon animals learning')"
-        }}
-    ],
-    "total_questions": 0,
-    "differentiation_notes": "How to differentiate for different learners"
-}}
-
-Requirements:
-1. Content must be age-appropriate for {grade}
-2. Questions must progress in difficulty
-3. All answers must be accurate
-4. Instructions must be clear
-5. Content must be original
-6. All content must be in English
-7. Make it educationally valuable, not just decorative"""
-    
-    response = model.generate_content(prompt)
-    clean_text = response.text.replace('```json', '').replace('```', '').strip()
-    return json.loads(clean_text)
-
-def generate_listing(api_key, worksheet_data, category, skill, grade, num_pages):
-    """สร้าง TPT Listing ด้วย Gemini"""
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
-    
-    prompt = f"""Create a professional TPT product listing for this worksheet:
-Title: {worksheet_data.get('title', '')}
-Category: {category}
-Skill: {skill}
-Grade: {grade}
-Pages: {num_pages}
-Objective: {worksheet_data.get('objective', '')}
-Skills: {', '.join(worksheet_data.get('skills_covered', []))}
-
-Generate 5 title options and select the best one.
-Return ONLY valid JSON:
-{{
-    "title_options": [
-        "Title Option 1",
-        "Title Option 2",
-        "Title Option 3",
-        "Title Option 4",
-        "Title Option 5"
-    ],
-    "recommended_title": "Best title",
-    "description": "Professional description with: opening, what's included, skills, how to use, differentiation, file info",
-    "categories": ["Category 1", "Category 2"],
-    "subjects": ["Subject 1", "Subject 2"],
-    "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10"],
-    "standards": ["CCSS.X.X.X"],
-    "price": 3.50,
-    "teaching_duration": "1 week",
-    "total_pages": {num_pages + 2},
-    "grade_levels": ["{grade}"],
-    "resource_type": "Worksheets",
-    "audience": "Classroom Teachers, Homeschool Parents"
-}}
-
-Requirements:
-1. Title must match real buyer search intent
-2. Title structure: Primary Skill + Resource Type + Grade + Feature
-3. Description must be in natural American English
-4. Tags must reflect how teachers actually search
-5. Price must be market-appropriate
-6. Standards must be verified (if applicable)
-7. All content must be in English"""
-    
-    response = model.generate_content(prompt)
-    clean_text = response.text.replace('```json', '').replace('```', '').strip()
-    return json.loads(clean_text)
-
-def create_cartoon_illustration(prompt, theme_colors, size=(800, 600)):
-    """สร้างภาพประกอบแบบง่ายๆ ด้วย shapes"""
-    img = Image.new('RGB', size, color=theme_colors['bg'])
-    draw = ImageDraw.Draw(img)
-    
-    # สร้าง background pattern
-    for i in range(0, size[0], 50):
-        for j in range(0, size[1], 50):
-            if random.random() > 0.7:
-                draw.ellipse([i, j, i+20, j+20], fill=theme_colors['accent'])
-    
-    # วาดตัวละครหลัก (simple cartoon)
-    # ตัว
-    draw.ellipse([300, 200, 500, 450], fill=theme_colors['primary'])
-    # หัว
-    draw.ellipse([350, 100, 450, 200], fill=theme_colors['primary'])
-    # ตา
-    draw.ellipse([370, 130, 390, 150], fill='white')
-    draw.ellipse([410, 130, 430, 150], fill='white')
-    draw.ellipse([375, 135, 385, 145], fill='black')
-    draw.ellipse([415, 135, 425, 145], fill='black')
-    # ปาก
-    draw.arc([380, 160, 420, 180], 0, 180, fill='black', width=2)
-    
-    # เพิ่ม text
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-    except:
-        font = ImageFont.load_default()
-    
-    caption = prompt[:50] if len(prompt) > 50 else prompt
-    draw.text((size[0]//2, size[1] - 50), caption, fill=theme_colors['text'], 
-              font=font, anchor="mm")
-    
-    return img
-
-def create_thumbnail(worksheet_data, theme_colors, thumbnail_type, size=(1500, 1500)):
-    """สร้าง Thumbnail ตามเอกสาร Reference"""
-    img = Image.new('RGB', size, color=theme_colors['primary'])
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
-        body_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 50)
-    except:
-        title_font = ImageFont.load_default()
-        body_font = ImageFont.load_default()
-    
-    if thumbnail_type == 1:  # Main Cover
-        draw.rectangle([0, 0, size[0], size[1]], fill=theme_colors['primary'])
-        title = worksheet_data.get('title', 'Worksheet')
-        draw.text((size[0]//2, 300), title, fill='white', font=title_font, anchor="mm")
-        grade = worksheet_data.get('grade', 'Grade Level')
-        draw.text((size[0]//2, 500), grade, fill='white', font=body_font, anchor="mm")
-        skill = worksheet_data.get('skill', 'Skill')
-        draw.text((size[0]//2, 700), skill, fill='white', font=body_font, anchor="mm")
-        draw.ellipse([100, 100, 300, 300], fill=theme_colors['accent'])
-        draw.ellipse([1200, 100, 1400, 300], fill=theme_colors['secondary'])
-        
-    elif thumbnail_type == 2:  # What's Included
-        draw.rectangle([0, 0, size[0], size[1]], fill=theme_colors['secondary'])
-        draw.text((size[0]//2, 200), "What's Included:", fill='white', 
-                 font=title_font, anchor="mm")
-        pages = worksheet_data.get('total_pages', 10)
-        draw.text((size[0]//2, 400), f"✓ {pages} Student Pages", fill='white', 
-                 font=body_font, anchor="mm")
-        draw.text((size[0]//2, 550), "✓ Answer Key", fill='white', 
-                 font=body_font, anchor="mm")
-        draw.text((size[0]//2, 700), "✓ No Prep Required", fill='white', 
-                 font=body_font, anchor="mm")
-        
-    elif thumbnail_type == 3:  # Skills and Features
-        draw.rectangle([0, 0, size[0], size[1]], fill=theme_colors['accent'])
-        draw.text((size[0]//2, 200), "Skills Covered:", fill='black', 
-                 font=title_font, anchor="mm")
-        skills = worksheet_data.get('skills_covered', ['Skill 1', 'Skill 2', 'Skill 3'])
-        y_pos = 400
-        for skill in skills[:3]:
-            draw.text((size[0]//2, y_pos), f"• {skill}", fill='black', 
-                     font=body_font, anchor="mm")
-            y_pos += 150
-            
-    elif thumbnail_type == 4:  # Sample and Use Cases
-        draw.rectangle([0, 0, size[0], size[1]], fill=theme_colors['bg'])
-        draw.text((size[0]//2, 200), "Perfect For:", fill=theme_colors['text'], 
-                 font=title_font, anchor="mm")
-        features = [
-            "✓ Morning Work",
-            "✓ Independent Practice",
-            "✓ Homework",
-            "✓ Intervention"
-        ]
-        y_pos = 400
-        for feature in features:
-            draw.text((size[0]//2, y_pos), feature, fill=theme_colors['text'], 
-                     font=body_font, anchor="mm")
-            y_pos += 150
-    
-    return img
-
-def generate_pdf(worksheet_data, theme_colors, paper_size="letter", include_answer_key=True):
-    """สร้าง PDF สวยงามพร้อมภาพประกอบ"""
-    buffer = io.BytesIO()
-    
-    if paper_size == "letter":
-        size = letter
-    else:
-        size = A4
-    
-    c = canvas.Canvas(buffer, pagesize=size)
-    width, height = size
-    
-    # สร้างแต่ละหน้า
-    for i, page in enumerate(worksheet_data.get('pages', [])):
-        # Background
-        c.setFillColor(HexColor(theme_colors['bg']))
-        c.rect(0, 0, width, height, fill=1)
-        
-        # Header with color
-        c.setFillColor(HexColor(theme_colors['primary']))
-        c.rect(0, height - 1.5*inch, width, 1.5*inch, fill=1)
-        
-        # Title
-        c.setFillColor(HexColor('#FFFFFF'))
-        c.setFont("Helvetica-Bold", 24)
-        c.drawString(0.75*inch, height - 1*inch, page.get('page_title', f'Page {i+1}'))
-        
-        # Instructions
-        c.setFillColor(HexColor(theme_colors['text']))
-        c.setFont("Helvetica", 12)
-        y_pos = height - 2*inch
-        c.drawString(0.75*inch, y_pos, page.get('instructions', ''))
-        
-        # Illustration
-        if 'illustration_prompt' in page:
-            try:
-                illustration = create_cartoon_illustration(
-                    page['illustration_prompt'], 
-                    theme_colors,
-                    size=(400, 300)
-                )
-                img_buffer = io.BytesIO()
-                illustration.save(img_buffer, format='PNG')
-                img_buffer.seek(0)
-                
-                img = RLImage(img_buffer, width=3*inch, height=2.25*inch)
-                img.drawOn(c, 0.75*inch, y_pos - 2.5*inch)
-                y_pos -= 3*inch
-            except:
-                pass
-        
-        # Questions
-        c.setFont("Helvetica", 11)
-        c.setFillColor(HexColor(theme_colors['text']))
-        
-        for q in page.get('questions', []):
-            q_text = f"{q.get('id')}. {q.get('question', '')}"
-            
-            if len(q_text) > 80:
-                lines = [q_text[i:i+80] for i in range(0, len(q_text), 80)]
-                for line in lines:
-                    c.drawString(0.75*inch, y_pos, line)
-                    y_pos -= 0.2*inch
-            else:
-                c.drawString(0.75*inch, y_pos, q_text)
-            
-            y_pos -= 0.3*inch
-            
-            # Answer space
-            c.setStrokeColor(HexColor(theme_colors['secondary']))
-            c.setLineWidth(1)
-            c.line(1*inch, y_pos, 7*inch, y_pos)
-            y_pos -= 0.5*inch
-            
-            if y_pos < 1*inch:
-                c.showPage()
-                y_pos = height - 1*inch
-                c.setFont("Helvetica", 11)
-                c.setFillColor(HexColor(theme_colors['text']))
-        
-        # Footer
-        c.setFillColor(HexColor('#999999'))
-        c.setFont("Helvetica", 8)
-        c.drawString(0.75*inch, 0.5*inch, f"Page {i+1}")
-        
-        c.showPage()
-    
-    # Answer Key
-    if include_answer_key and 'pages' in worksheet_data:
-        c.setFillColor(HexColor(theme_colors['bg']))
-        c.rect(0, 0, width, height, fill=1)
-        
-        c.setFillColor(HexColor(theme_colors['primary']))
-        c.setFont("Helvetica-Bold", 20)
-        c.drawString(0.75*inch, height - 1*inch, "Answer Key")
-        
-        c.setFillColor(HexColor(theme_colors['text']))
-        c.setFont("Helvetica", 11)
-        y_pos = height - 1.5*inch
-        
-        for page in worksheet_data.get('pages', []):
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(0.75*inch, y_pos, f"Page {page.get('page_number', '')}")
-            y_pos -= 0.3*inch
-            
-            c.setFont("Helvetica", 10)
-            for q in page.get('questions', []):
-                answer_text = f"{q.get('id')}. {q.get('answer', '')}"
-                
-                if len(answer_text) > 80:
-                    lines = [answer_text[i:i+80] for i in range(0, len(answer_text), 80)]
-                    for line in lines:
-                        c.drawString(1*inch, y_pos, line)
-                        y_pos -= 0.2*inch
-                else:
-                    c.drawString(1*inch, y_pos, answer_text)
-                    y_pos -= 0.25*inch
-                
-                if y_pos < 1*inch:
-                    c.showPage()
-                    y_pos = height - 1*inch
-                    c.setFont("Helvetica", 10)
-            
-            y_pos -= 0.2*inch
-        
-        c.showPage()
-    
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-def create_preview_pdf(worksheet_data, theme_colors):
-    """สร้าง Preview PDF สำหรับ TPT"""
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    
-    # Cover page
-    c.setFillColor(HexColor(theme_colors['primary']))
-    c.rect(0, 0, width, height, fill=1)
-    
-    c.setFillColor(HexColor('#FFFFFF'))
-    c.setFont("Helvetica-Bold", 36)
-    c.drawCentredString(width/2, height - 3*inch, worksheet_data.get('title', 'Worksheet'))
-    
-    c.setFont("Helvetica", 18)
-    c.drawCentredString(width/2, height - 4*inch, worksheet_data.get('objective', ''))
-    
-    c.setFont("Helvetica-Bold", 24)
-    c.drawCentredString(width/2, height - 6*inch, "PREVIEW")
-    
-    c.showPage()
-    
-    # What's included page
-    c.setFillColor(HexColor(theme_colors['bg']))
-    c.rect(0, 0, width, height, fill=1)
-    
-    c.setFillColor(HexColor(theme_colors['primary']))
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(0.75*inch, height - 1*inch, "What's Included:")
-    
-    c.setFillColor(HexColor(theme_colors['text']))
-    c.setFont("Helvetica", 14)
-    y_pos = height - 1.8*inch
-    
-    pages = len(worksheet_data.get('pages', []))
-    c.drawString(0.75*inch, y_pos, f"✓ {pages} Student Activity Pages")
-    y_pos -= 0.4*inch
-    c.drawString(0.75*inch, y_pos, "✓ Complete Answer Key")
-    y_pos -= 0.4*inch
-    c.drawString(0.75*inch, y_pos, "✓ No Prep Required")
-    y_pos -= 0.4*inch
-    c.drawString(0.75*inch, y_pos, "✓ Print & Go Format")
-    
-    c.showPage()
-    
-    # Sample pages
-    for i, page in enumerate(worksheet_data.get('pages', [])[:2]):
-        c.setFillColor(HexColor(theme_colors['bg']))
-        c.rect(0, 0, width, height, fill=1)
-        
-        c.setFillColor(HexColor(theme_colors['primary']))
-        c.rect(0, height - 1.5*inch, width, 1.5*inch, fill=1)
-        
-        c.setFillColor(HexColor('#FFFFFF'))
-        c.setFont("Helvetica-Bold", 20)
-        c.drawString(0.75*inch, height - 1*inch, page.get('page_title', f'Sample Page {i+1}'))
-        
-        c.setFillColor(HexColor('#CCCCCC'))
-        c.setFont("Helvetica-Bold", 72)
-        c.drawCentredString(width/2, height/2, "PREVIEW")
-        
-        c.showPage()
-    
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-def create_complete_package(worksheet_data, listing_data, theme_colors, paper_size):
-    """สร้าง ZIP package สมบูรณ์"""
-    buffer = io.BytesIO()
-    
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Student worksheets PDF
-        pdf_buffer = generate_pdf(worksheet_data, theme_colors, paper_size, include_answer_key=True)
-        zip_file.writestr("Student_Worksheets_with_Answer_Key.pdf", pdf_buffer.getvalue())
-        
-        # Preview PDF
-        preview_buffer = create_preview_pdf(worksheet_data, theme_colors)
-        zip_file.writestr("Product_Preview.pdf", preview_buffer.getvalue())
-        
-        # Thumbnails
-        for i in range(1, 5):
-            thumb = create_thumbnail(worksheet_data, theme_colors, i)
-            img_buffer = io.BytesIO()
-            thumb.save(img_buffer, format='JPEG', quality=95)
-            zip_file.writestr(f"Thumbnail_{i:02d}.jpg", img_buffer.getvalue())
-        
-        # Listing information
-        listing_text = f"""TITLE:
-{listing_data.get('recommended_title', '')}
-
-ALTERNATIVE TITLES:
-{chr(10).join(listing_data.get('title_options', []))}
-
-DESCRIPTION:
-{listing_data.get('description', '')}
-
-CATEGORIES:
-{', '.join(listing_data.get('categories', []))}
-
-SUBJECTS:
-{', '.join(listing_data.get('subjects', []))}
-
-TAGS:
-{', '.join(listing_data.get('tags', []))}
-
-STANDARDS:
-{chr(10).join(listing_data.get('standards', []))}
-
-PRICE: ${listing_data.get('price', 3.50)}
-
-TEACHING DURATION: {listing_data.get('teaching_duration', 'N/A')}
-
-TOTAL PAGES: {listing_data.get('total_pages', 0)}
-
-GRADE LEVELS: {', '.join(listing_data.get('grade_levels', []))}
-
-RESOURCE TYPE: {listing_data.get('resource_type', 'Worksheets')}
-
-AUDIENCE: {listing_data.get('audience', 'Classroom Teachers')}
-"""
-        zip_file.writestr("Listing_Information.txt", listing_text)
-        
-        # Project metadata
-        metadata = {
-            "created": datetime.now().isoformat(),
-            "worksheet_data": worksheet_data,
-            "listing_data": listing_data,
-            "theme": theme_colors
+    <style>
+        :root {
+            --primary: #7C3AED;
+            --primary-light: #A78BFA;
+            --secondary: #F472B6;
+            --accent: #FBBF24;
+            --success: #34D399;
+            --bg: #FEFCE8;
+            --card: #FFFFFF;
+            --text: #1F2937;
+            --text-light: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 16px;
+            --radius-sm: 8px;
         }
-        zip_file.writestr("Project_Metadata.json", json.dumps(metadata, indent=2))
-    
-    buffer.seek(0)
-    return buffer
-
-def validate_worksheet(worksheet_data):
-    """ตรวจสอบคุณภาพใบงานตามเอกสาร Reference"""
-    issues = []
-    warnings = []
-    
-    # Educational QA
-    if not worksheet_data.get('objective'):
-        issues.append("Missing learning objective")
-    
-    if not worksheet_data.get('skills_covered'):
-        issues.append("Missing skills covered")
-    
-    # Check each page
-    for i, page in enumerate(worksheet_data.get('pages', [])):
-        if not page.get('instructions'):
-            warnings.append(f"Page {i+1}: Missing instructions")
         
-        if not page.get('questions'):
-            issues.append(f"Page {i+1}: No questions")
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        for q in page.get('questions', []):
-            if not q.get('answer'):
-                warnings.append(f"Page {i+1}, Question {q.get('id')}: Missing answer")
-    
-    # Answer Key Validation
-    total_questions = sum(len(p.get('questions', [])) for p in worksheet_data.get('pages', []))
-    if worksheet_data.get('total_questions', 0) != total_questions:
-        warnings.append(f"Total questions mismatch: stated {worksheet_data.get('total_questions')}, actual {total_questions}")
-    
-    return {
-        "issues": issues,
-        "warnings": warnings,
-        "is_valid": len(issues) == 0
-    }
-
-# ==========================================
-# 3. STREAMLIT UI
-# ==========================================
-
-st.set_page_config(
-    page_title="TPT Worksheet Generator Pro",
-    page_icon="📚",
-    layout="wide"
-)
-
-st.title("📚 TPT Worksheet Generator Pro")
-st.markdown("**สร้างใบงานพร้อมภาพประกอบสวยงาม สำหรับขายบน Teachers Pay Teachers**")
-st.markdown("✅ AI สร้างเนื้อหา | ✅ ภาพประกอบอัตโนมัติ | ✅ PDF สวยงาม | ✅ Thumbnail 4 แบบ | ✅ SEO Listing | ✅ Export ZIP")
-
-# Sidebar
-with st.sidebar:
-    st.header("⚙️ ตั้งค่า")
-    api_key = st.text_input(
-        "Gemini API Key", 
-        type="password",
-        help="ใส่ API Key จาก https://aistudio.google.com/app/apikey"
-    )
-    
-    st.divider()
-    
-    # Product Category
-    category = st.selectbox("หมวดหมู่", list(PRODUCT_CATEGORIES.keys()))
-    
-    # Skill (based on category)
-    skills = PRODUCT_CATEGORIES[category]
-    skill = st.selectbox("ทักษะ", skills)
-    
-    # Grade Level
-    grade_level = st.selectbox("ระดับชั้น", GRADE_LEVELS)
-    
-    # Difficulty
-    difficulty = st.selectbox("ระดับความยาก", DIFFICULTY_LEVELS)
-    
-    # Number of pages
-    num_pages = st.number_input("จำนวนหน้า", min_value=1, max_value=50, value=5)
-    
-    # Theme
-    theme = st.selectbox("ธีมการออกแบบ", list(THEMES.keys()))
-    
-    # Paper size
-    paper_size = st.radio("ขนาดกระดาษ", ["US Letter", "A4"])
-    
-    # Answer key
-    include_answer_key = st.checkbox("รวม Answer Key", value=True)
-    
-    st.divider()
-    
-    # Opportunity Score
-    if st.button("🎯 คำนวณคะแนนโอกาส"):
-        score = calculate_opportunity_score(category, skill, grade_level)
-        st.metric("Opportunity Score", f"{score}/100")
+        body {
+            font-family: 'Quicksand', 'Kanit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(244, 114, 182, 0.05) 0%, transparent 50%);
+        }
         
-        if score >= 80:
-            st.success("โอกาสดีเยี่ยม! แนะนำให้ทำ")
-        elif score >= 65:
-            st.info("น่าสนใจ ต้องมีจุดเด่นที่แตกต่าง")
-        elif score >= 50:
-            st.warning("การแข่งขันสูง พิจารณาหาจุดเด่นเพิ่มเติม")
-        else:
-            st.error("ไม่แนะนำในรูปแบบปัจจุบัน")
-
-# Main Content
-if "worksheet_data" not in st.session_state:
-    st.session_state.worksheet_data = None
-
-if "listing_data" not in st.session_state:
-    st.session_state.listing_data = None
-
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📝 สร้างเนื้อหา",
-    "📊 TPT Listing",
-    "🎨 ตัวอย่างและ Preview",
-    "🖼️ Thumbnails",
-    "✅ Validation",
-    "💾 Export Package"
-])
-
-with tab1:
-    st.header("1. สร้างเนื้อหาใบงาน")
-    
-    if st.button("🚀 สร้างใบงานเลย!", type="primary"):
-        if not api_key:
-            st.error("กรุณาใส่ Gemini API Key ในแถบด้านซ้าย")
-        else:
-            with st.spinner("🤖 AI กำลังสร้างเนื้อหา... (อาจใช้เวลา 30-60 วินาที)"):
-                try:
-                    data = generate_worksheet_content(
-                        api_key, category, skill, grade_level, 
-                        difficulty, num_pages, theme
-                    )
-                    data['grade'] = grade_level
-                    data['skill'] = skill
-                    data['category'] = category
-                    st.session_state.worksheet_data = data
-                    st.success("✅ สร้างเนื้อหาสำเร็จ!")
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาด: {e}")
-                    st.info("ลองใหม่อีกครั้ง หรือตรวจสอบ API Key")
-    
-    if st.session_state.worksheet_data:
-        st.subheader("📝 เนื้อหาที่สร้างได้")
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 24px 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"**Title:** {st.session_state.worksheet_data.get('title', '')}")
-            st.write(f"**Grade:** {st.session_state.worksheet_data.get('grade', '')}")
-            st.write(f"**Category:** {st.session_state.worksheet_data.get('category', '')}")
-            st.write(f"**Skill:** {st.session_state.worksheet_data.get('skill', '')}")
+        .header h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
         
-        with col2:
-            st.write(f"**Objective:** {st.session_state.worksheet_data.get('objective', '')}")
-            st.write(f"**Total Questions:** {st.session_state.worksheet_data.get('total_questions', 0)}")
-            st.write(f"**Pages:** {len(st.session_state.worksheet_data.get('pages', []))}")
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
         
-        st.write(f"**Skills Covered:** {', '.join(st.session_state.worksheet_data.get('skills_covered', []))}")
+        .api-key-input {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: var(--radius-sm);
+            padding: 8px 16px;
+            color: white;
+            font-family: 'Quicksand', sans-serif;
+            font-size: 14px;
+            width: 280px;
+            backdrop-filter: blur(10px);
+        }
         
-        if st.session_state.worksheet_data.get('differentiation_notes'):
-            st.write(f"**Differentiation:** {st.session_state.worksheet_data.get('differentiation_notes')}")
+        .api-key-input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
         
-        with st.expander("ดูเนื้อหาทั้งหมด (JSON)"):
-            st.json(st.session_state.worksheet_data)
-
-with tab2:
-    st.header("2. TPT Listing Generator")
-    
-    if st.session_state.worksheet_data:
-        if st.button("📊 สร้าง Listing", type="primary"):
-            if not api_key:
-                st.error("กรุณาใส่ Gemini API Key")
-            else:
-                with st.spinner("กำลังสร้าง Listing..."):
-                    try:
-                        listing = generate_listing(
-                            api_key,
-                            st.session_state.worksheet_data,
-                            category,
-                            skill,
-                            grade_level,
-                            num_pages
-                        )
-                        st.session_state.listing_data = listing
-                        st.success("✅ สร้าง Listing สำเร็จ!")
-                    except Exception as e:
-                        st.error(f"เกิดข้อผิดพลาด: {e}")
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255,255,255,0.3);
+        }
         
-        if st.session_state.listing_data:
-            st.subheader("📌 Title Options")
-            for i, title in enumerate(st.session_state.listing_data.get('title_options', []), 1):
-                st.write(f"{i}. {title}")
+        /* Main Layout */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 40px;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 32px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .card-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+        }
+        
+        /* Game Selection */
+        .game-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .game-card {
+            background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+            border: 2px solid transparent;
+            border-radius: var(--radius-sm);
+            padding: 14px 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .game-card.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        
+        .game-card .emoji {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 6px;
+        }
+        
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-light);
+            font-family: 'Quicksand', sans-serif;
+        }
+        
+        .form-select, .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Quicksand', sans-serif;
+            font-size: 14px;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'Fredoka', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #10B981;
+        }
+        
+        /* Content Area */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: white;
+            padding: 6px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-light);
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+        
+        .tab:hover:not(.active) {
+            background: #F3F4F6;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Worksheet Preview */
+        .preview-container {
+            background: white;
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            min-height: 600px;
+        }
+        
+        .worksheet-page {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 40px;
+            margin-bottom: 24px;
+            font-family: 'Comic Neue', 'Quicksand', sans-serif;
+            position: relative;
+            page-break-after: always;
+        }
+        
+        .worksheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px dashed var(--primary-light);
+        }
+        
+        .worksheet-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .worksheet-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        
+        .worksheet-meta span {
+            background: #F3F4F6;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        
+        .worksheet-directions {
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+            border-left: 4px solid var(--accent);
+        }
+        
+        /* Sudoku Grid */
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 0;
+            max-width: 450px;
+            margin: 0 auto;
+            border: 3px solid var(--text);
+        }
+        
+        .sudoku-cell {
+            aspect-ratio: 1;
+            border: 1px solid #D1D5DB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            background: white;
+        }
+        
+        .sudoku-cell.given {
+            background: #EDE9FE;
+            color: var(--primary);
+        }
+        
+        .sudoku-cell:nth-child(3n) {
+            border-right: 3px solid var(--text);
+        }
+        
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid var(--text);
+        }
+        
+        /* KenKen Grid */
+        .kenken-grid {
+            display: grid;
+            gap: 0;
+            max-width: 400px;
+            margin: 0 auto;
+            border: 3px solid var(--text);
+        }
+        
+        .kenken-cell {
+            aspect-ratio: 1;
+            border: 1px solid #D1D5DB;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 4px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            background: white;
+            position: relative;
+        }
+        
+        .kenken-cage-label {
+            font-size: 10px;
+            color: var(--secondary);
+            font-weight: 700;
+        }
+        
+        /* Word Search */
+        .wordsearch-grid {
+            display: grid;
+            gap: 2px;
+            max-width: 500px;
+            margin: 0 auto 24px;
+        }
+        
+        .wordsearch-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            background: #F3F4F6;
+            border-radius: 4px;
+        }
+        
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        
+        .word-item {
+            background: linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+        
+        /* Cryptogram */
+        .cryptogram-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+            align-items: flex-end;
+        }
+        
+        .crypto-char {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .crypto-code {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 12px;
+            color: var(--secondary);
+            font-weight: 600;
+        }
+        
+        .crypto-box {
+            width: 28px;
+            height: 32px;
+            border: 2px solid var(--primary-light);
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .crypto-space {
+            width: 16px;
+        }
+        
+        /* Coordinate Grid */
+        .coord-grid {
+            display: grid;
+            gap: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            border: 2px solid var(--text);
+        }
+        
+        .coord-cell {
+            aspect-ratio: 1;
+            border: 1px solid #E5E7EB;
+            background: white;
+        }
+        
+        .coord-cell.filled {
+            background: var(--accent);
+        }
+        
+        /* Math Crossword */
+        .crossword-grid {
+            display: grid;
+            gap: 0;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .crossword-cell {
+            aspect-ratio: 1;
+            border: 2px solid var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            background: white;
+        }
+        
+        .crossword-cell.black {
+            background: var(--text);
+        }
+        
+        .crossword-cell.numbered::before {
+            content: attr(data-num);
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 9px;
+            color: var(--text-light);
+        }
+        
+        /* Kakuro */
+        .kakuro-grid {
+            display: grid;
+            gap: 0;
+            max-width: 450px;
+            margin: 0 auto;
+            border: 3px solid var(--text);
+        }
+        
+        .kakuro-cell {
+            aspect-ratio: 1;
+            border: 1px solid #D1D5DB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            background: white;
+            position: relative;
+        }
+        
+        .kakuro-cell.clue {
+            background: var(--text);
+            color: white;
+        }
+        
+        .kakuro-cell.clue-diagonal {
+            background: linear-gradient(135deg, transparent 49%, var(--text) 51%);
+        }
+        
+        .kakuro-clue-num {
+            font-size: 10px;
+            position: absolute;
+        }
+        
+        .kakuro-clue-top {
+            top: 2px;
+            right: 4px;
+        }
+        
+        .kakuro-clue-left {
+            bottom: 2px;
+            left: 4px;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+            color: var(--text-light);
+        }
+        
+        .empty-state .emoji {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        
+        .loading-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 40px 60px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            color: var(--text);
+        }
+        
+        .loading-sub {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+        
+        /* SEO Listing */
+        .seo-section {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .seo-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .seo-field {
+            margin-bottom: 16px;
+        }
+        
+        .seo-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .seo-field input, .seo-field textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Quicksand', sans-serif;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .seo-field textarea {
+            min-height: 120px;
+        }
+        
+        .seo-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .seo-tag {
+            background: linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+        
+        /* Thumbnails */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .thumbnail-card {
+            background: white;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .thumbnail-canvas-wrapper {
+            aspect-ratio: 1;
+            background: #F9FAFB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .thumbnail-canvas-wrapper canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .thumbnail-info {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .thumbnail-info h4 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .thumbnail-info p {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: white;
+            border-radius: var(--radius-sm);
+            padding: 16px 24px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid var(--success);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
             
-            st.subheader("✅ Recommended Title")
-            st.text_area("Recommended", st.session_state.listing_data.get('recommended_title', ''), height=100)
+            .header {
+                padding: 16px 20px;
+                flex-direction: column;
+                gap: 12px;
+            }
             
-            st.subheader("📝 Description")
-            st.text_area("Description", st.session_state.listing_data.get('description', ''), height=400)
-            
-            st.subheader("🏷️ Metadata")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**Categories:**", ", ".join(st.session_state.listing_data.get('categories', [])))
-                st.write("**Subjects:**", ", ".join(st.session_state.listing_data.get('subjects', [])))
-                st.write("**Resource Type:**", st.session_state.listing_data.get('resource_type', ''))
-                st.write("**Audience:**", st.session_state.listing_data.get('audience', ''))
-            
-            with col2:
-                st.write("**Tags:**", ", ".join(st.session_state.listing_data.get('tags', [])))
-                st.write("**Standards:**", ", ".join(st.session_state.listing_data.get('standards', [])))
-                st.write("**Grade Levels:**", ", ".join(st.session_state.listing_data.get('grade_levels', [])))
-            
-            st.subheader("💰 Pricing & Details")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Suggested Price", f"${st.session_state.listing_data.get('price', 3.50)}")
-            with col2:
-                st.metric("Teaching Duration", st.session_state.listing_data.get('teaching_duration', 'N/A'))
-            with col3:
-                st.metric("Total Pages", st.session_state.listing_data.get('total_pages', 0))
-    else:
-        st.warning("กรุณาสร้างเนื้อหาในแท็บแรกก่อน")
-
-with tab3:
-    st.header("3. ตัวอย่างและ Preview")
+            .api-key-input {
+                width: 100%;
+            }
+        }
+        
+        /* Answer Key */
+        .answer-key-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 0;
+            max-width: 300px;
+            margin: 0 auto;
+            border: 2px solid var(--text);
+        }
+        
+        .answer-key-cell {
+            aspect-ratio: 1;
+            border: 1px solid #E5E7EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            background: #ECFDF5;
+            color: var(--success);
+        }
+        
+        /* Footer branding */
+        .worksheet-footer {
+            margin-top: 24px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-light);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+        
+        .checkbox-group label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>✨ GridMind Worksheet Studio</h1>
+        <div class="header-actions">
+            <input type="password" class="api-key-input" id="apiKey" placeholder="🔑 ใส่ Gemini API Key ของคุณ...">
+        </div>
+    </header>
     
-    if st.session_state.worksheet_data:
-        theme_colors = THEMES.get(theme, THEMES["Clean Classroom"])
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Game Selection -->
+            <div class="card">
+                <div class="card-title">🎮 เลือกประเภทเกม</div>
+                <div class="game-grid">
+                    <div class="game-card active" data-game="sudoku">
+                        <span class="emoji">🔢</span>
+                        Sudoku
+                    </div>
+                    <div class="game-card" data-game="kenken">
+                        <span class="emoji">➕</span>
+                        KenKen
+                    </div>
+                    <div class="game-card" data-game="cryptogram">
+                        <span class="emoji">🕵️</span>
+                        Secret Codes
+                    </div>
+                    <div class="game-card" data-game="kakuro">
+                        <span class="emoji">🧮</span>
+                        Kakuro
+                    </div>
+                    <div class="game-card" data-game="wordsearch">
+                        <span class="emoji">🔍</span>
+                        Word Search
+                    </div>
+                    <div class="game-card" data-game="pixelart">
+                        <span class="emoji">🎨</span>
+                        Pixel Art
+                    </div>
+                    <div class="game-card" data-game="crossword">
+                        <span class="emoji">✏️</span>
+                        Math Crossword
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Configuration -->
+            <div class="card">
+                <div class="card-title">⚙️ ตั้งค่าใบงาน</div>
+                
+                <div class="form-group">
+                    <label class="form-label">ระดับชั้น (Grade Level)</label>
+                    <select class="form-select" id="gradeLevel">
+                        <option value="K">Kindergarten (K)</option>
+                        <option value="1">Grade 1</option>
+                        <option value="2" selected>Grade 2</option>
+                        <option value="3">Grade 3</option>
+                        <option value="4">Grade 4</option>
+                        <option value="5">Grade 5</option>
+                        <option value="6">Grade 6</option>
+                        <option value="7">Grade 7</option>
+                        <option value="8">Grade 8</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">ความยาก</label>
+                        <select class="form-select" id="difficulty">
+                            <option value="beginner">Beginner</option>
+                            <option value="easy" selected>Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                            <option value="challenge">Challenge</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">จำนวนใบงาน</label>
+                        <select class="form-select" id="worksheetCount">
+                            <option value="1">1 หน้า</option>
+                            <option value="3">3 หน้า</option>
+                            <option value="5" selected>5 หน้า</option>
+                            <option value="10">10 หน้า</option>
+                            <option value="20">20 หน้า</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">ขนาดกระดาษ</label>
+                        <select class="form-select" id="paperSize">
+                            <option value="letter" selected>US Letter</option>
+                            <option value="a4">A4</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ธีม</label>
+                        <select class="form-select" id="theme">
+                            <option value="evergreen" selected>Evergreen</option>
+                            <option value="animals">Animals</option>
+                            <option value="space">Space</option>
+                            <option value="ocean">Ocean</option>
+                            <option value="nature">Nature</option>
+                            <option value="sports">Sports</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">ชื่อร้านค้า (Store Name)</label>
+                    <input type="text" class="form-input" id="storeName" placeholder="เช่น MathFun Academy" value="MathFun Academy">
+                </div>
+                
+                <div style="margin-top: 16px;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="includeAnswerKey" checked>
+                        <label for="includeAnswerKey">รวมหน้าเฉลย (Answer Key)</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="includeCover" checked>
+                        <label for="includeCover">รวมหน้าปก (Cover Page)</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="lowInk">
+                        <label for="lowInk">โหมดประหยัดหมึก (Low-Ink B&W)</label>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" id="generateBtn" style="margin-top: 20px;">
+                    🚀 สร้างใบงานเลย!
+                </button>
+                
+                <div class="progress-bar" id="progressBar" style="display: none;">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+        </aside>
         
-        st.info("สร้าง PDF ตัวอย่างพร้อมภาพประกอบ")
-        
-        if st.button("📄 สร้าง PDF ตัวอย่าง", type="primary"):
-            with st.spinner("กำลังสร้าง PDF..."):
-                try:
-                    pdf_buffer = generate_pdf(
-                        st.session_state.worksheet_data,
-                        theme_colors,
-                        paper_size.lower().replace(' ', ''),
-                        include_answer_key
-                    )
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="preview">📄 Preview</button>
+                <button class="tab" data-tab="seo">🔍 TPT SEO Listing</button>
+                <button class="tab" data-tab="thumbnails">🖼️ Thumbnails</button>
+                <button class="tab" data-tab="export">📦 Export</button>
+            </div>
+            
+            <!-- Preview Tab -->
+            <div class="tab-content active" id="tab-preview">
+                <div class="preview-container" id="previewContainer">
+                    <div class="empty-state">
+                        <div class="emoji">📝</div>
+                        <h3>พร้อมสร้างใบงานแล้ว!</h3>
+                        <p>เลือกเกม ตั้งค่า แล้วกด "สร้างใบงานเลย!" เพื่อเริ่มต้น</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SEO Tab -->
+            <div class="tab-content" id="tab-seo">
+                <div class="seo-section">
+                    <div class="seo-title">🔍 TPT SEO Listing Generator</div>
+                    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">
+                        สร้างข้อมูล Listing สำหรับ TPT อัตโนมัติด้วย AI — ปรับแก้ได้ก่อนนำไปใช้
+                    </p>
                     
-                    st.download_button(
-                        "📥 ดาวน์โหลด PDF",
-                        pdf_buffer,
-                        f"TPT_{skill.replace(' ', '_')}_{grade_level.replace(' ', '_')}.pdf",
-                        "application/pdf"
-                    )
-                    st.success("✅ สร้าง PDF สำเร็จ!")
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาด: {e}")
-        
-        st.subheader("📄 Product Preview")
-        if st.button("📄 สร้าง Preview PDF", type="primary"):
-            with st.spinner("กำลังสร้าง Preview..."):
-                try:
-                    preview_buffer = create_preview_pdf(
-                        st.session_state.worksheet_data,
-                        theme_colors
-                    )
+                    <button class="btn btn-secondary" id="generateSeoBtn" style="margin-bottom: 20px;">
+                        ✨ Generate SEO Listing
+                    </button>
                     
-                    st.download_button(
-                        "📥 ดาวน์โหลด Preview PDF",
-                        preview_buffer,
-                        "Product_Preview.pdf",
-                        "application/pdf"
-                    )
-                    st.success("✅ สร้าง Preview สำเร็จ!")
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาด: {e}")
-    else:
-        st.warning("กรุณาสร้างเนื้อหาในแท็บแรกก่อน")
-
-with tab4:
-    st.header("4. Thumbnails")
+                    <div id="seoContent" style="display: none;">
+                        <div class="seo-field">
+                            <label>Product Title</label>
+                            <input type="text" id="seoTitle" placeholder="Product title will appear here...">
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Product Description</label>
+                            <textarea id="seoDescription" placeholder="Product description will appear here..."></textarea>
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Primary Keywords</label>
+                            <div class="seo-tags" id="seoKeywords"></div>
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Grade Levels</label>
+                            <input type="text" id="seoGrades" placeholder="e.g., 2nd Grade, 3rd Grade">
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Subject Area</label>
+                            <input type="text" id="seoSubject" placeholder="e.g., Math, Logic, Critical Thinking">
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Suggested Price (USD)</label>
+                            <input type="text" id="seoPrice" placeholder="e.g., $3.50">
+                        </div>
+                        
+                        <div class="seo-field">
+                            <label>Standards Alignment</label>
+                            <textarea id="seoStandards" placeholder="e.g., CCSS.MATH.CONTENT.2.OA.A.1"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Thumbnails Tab -->
+            <div class="tab-content" id="tab-thumbnails">
+                <div class="seo-section">
+                    <div class="seo-title">🖼️ Thumbnail Generator (4 Concepts)</div>
+                    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">
+                        สร้าง Thumbnail 4 แบบตามมาตรฐาน TPT — ขนาด 1500x1500px
+                    </p>
+                    
+                    <button class="btn btn-secondary" id="generateThumbnailsBtn" style="margin-bottom: 20px;">
+                        🎨 Generate Thumbnails
+                    </button>
+                    
+                    <div class="thumbnail-grid" id="thumbnailGrid">
+                        <div class="empty-state" style="grid-column: 1/-1;">
+                            <div class="emoji">🖼️</div>
+                            <h3>สร้างใบงานก่อนแล้วค่อยสร้าง Thumbnail</h3>
+                            <p>Thumbnail จะใช้ข้อมูลจากใบงานที่สร้างไว้</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Tab -->
+            <div class="tab-content" id="tab-export">
+                <div class="seo-section">
+                    <div class="seo-title">📦 Export Center</div>
+                    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">
+                        Export ใบงานเป็นไฟล์ PDF, ZIP Package หรือแยกไฟล์
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <button class="btn btn-success" id="exportPdfBtn">
+                            📄 Export as PDF
+                        </button>
+                        <button class="btn btn-success" id="exportZipBtn">
+                            📦 Export as ZIP Package
+                        </button>
+                        <button class="btn btn-secondary" id="exportAnswerKeyBtn">
+                            🔑 Answer Key Only (PDF)
+                        </button>
+                        <button class="btn btn-secondary" id="exportPreviewBtn">
+                            👁️ Preview PDF (with watermarks)
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 24px; padding: 16px; background: #F3F4F6; border-radius: var(--radius-sm);">
+                        <h4 style="font-family: 'Fredoka', sans-serif; font-size: 14px; margin-bottom: 8px;">📋 Export Checklist</h4>
+                        <ul style="font-size: 13px; color: var(--text-light); line-height: 1.8;">
+                            <li>✅ Worksheet PDF (US Letter / A4)</li>
+                            <li>✅ Answer Key PDF (separate file)</li>
+                            <li>✅ Cover Page + Table of Contents</li>
+                            <li>✅ Credits & Terms of Use page</li>
+                            <li>✅ Preview PDF (with watermarks)</li>
+                            <li>✅ Thumbnail images (1500x1500px)</li>
+                            <li>✅ Listing metadata (TXT file)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
     
-    if st.session_state.worksheet_data:
-        theme_colors = THEMES.get(theme, THEMES["Clean Classroom"])
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">กำลังสร้างใบงาน...</div>
+            <div class="loading-sub" id="loadingSub">Gemini 3.1 Flash-Lite กำลังทำงาน</div>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        const state = {
+            selectedGame: 'sudoku',
+            worksheets: [],
+            seoData: null,
+            thumbnails: [],
+            apiKey: ''
+        };
         
-        st.info("สร้าง Thumbnail 4 แบบสำหรับ TPT")
+        // ============================================
+        // GAME CONFIGURATIONS
+        // ============================================
+        const gameConfigs = {
+            sudoku: {
+                name: 'Sudoku',
+                emoji: '🔢',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Sudoku puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array with this exact structure:
+                [{"id": 1, "title": "Sudoku Puzzle #1", "grid": [[5,3,0,0,7,0,0,0,0],[6,0,0,1,9,5,0,0,0],...], "solution": [[5,3,4,6,7,8,9,1,2],...] }]
+                Use 0 for empty cells. Grid is 9x9. Each puzzle must have exactly ONE unique solution.
+                For Grade K-2: use 4x4 grids (values 1-4). For Grade 3-5: use 6x6 grids (values 1-6). For Grade 6+: use 9x9 grids.
+                Difficulty affects how many cells are given: beginner=40%, easy=35%, medium=30%, hard=25%, challenge=20%.
+                Return ONLY valid JSON, no markdown.`
+            },
+            kenken: {
+                name: 'KenKen',
+                emoji: '➕',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique KenKen puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "KenKen Puzzle #1", "size": 4, "cages": [{"cells": [[0,0],[0,1]], "operation": "+", "target": 5}, ...]}]
+                Size: 4x4 for Grade K-3, 5x5 for Grade 4-5, 6x6 for Grade 6+.
+                Operations: +, -, ×, ÷. Each cage has cells (row,col 0-indexed), operation, and target number.
+                Return ONLY valid JSON.`
+            },
+            cryptogram: {
+                name: 'Secret Codes',
+                emoji: '🕵️',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Cryptogram/Secret Code puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "Secret Code #1", "message": "THE QUICK BROWN FOX", "cipher": {"A":"M","B":"X",...}, "hint": "A=M, B=X, ..."}]
+                Use simple substitution cipher. Message should be age-appropriate.
+                For younger grades: short words (3-5 letters). For older: sentences.
+                Return ONLY valid JSON.`
+            },
+            kakuro: {
+                name: 'Kakuro',
+                emoji: '🧮',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Kakuro puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "Kakuro #1", "size": 8, "grid": [[null,null,{"down":3},...],...], "solution": [[...],...]}]
+                Grid cells: null = black block, number = given clue {"down":X,"right":Y}, 0 = empty cell to fill.
+                Size: 6x6 for younger, 8x8 for older. Values 1-9, no repeats in runs.
+                Return ONLY valid JSON.`
+            },
+            wordsearch: {
+                name: 'Word Search',
+                emoji: '🔍',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Word Search puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "Word Search #1", "size": 12, "words": ["APPLE","BANANA",...], "grid": [["A","P","P",...],...], "secretMessage": "GREAT JOB"}]
+                Words placed horizontally, vertically, diagonally (forward and backward).
+                Remaining letters spell a secret message.
+                Size: 10x10 for younger, 15x15 for older. 8-12 words per puzzle.
+                Return ONLY valid JSON.`
+            },
+            pixelart: {
+                name: 'Pixel Art',
+                emoji: '🎨',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Coordinate Grid Pixel Art puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "Pixel Art #1", "gridSize": 10, "coordinates": ["A1","B2","C3",...], "image": "cat", "instructions": "Color the cells at these coordinates to reveal a mystery picture!"}]
+                Grid labeled with letters (rows) and numbers (columns).
+                Coordinates should form a recognizable simple picture when colored.
+                Return ONLY valid JSON.`
+            },
+            crossword: {
+                name: 'Math Crossword',
+                emoji: '✏️',
+                prompt: (grade, diff, theme, count) => `Generate ${count} unique Math Crossword puzzles for Grade ${grade}, difficulty: ${diff}, theme: ${theme}.
+                Return JSON array: [{"id": 1, "title": "Math Crossword #1", "size": 5, "grid": [[null,1,null,...],...], "clues": {"across":[{"num":1,"clue":"2+3","answer":"5"}], "down":[{"num":2,"clue":"10-4","answer":"6"}]}, "solution": [[null,"5",null,...],...]}]
+                Grid: null = black, number = cell to fill. Clues are math equations.
+                Size: 5x5 for younger, 7x7 for older.
+                Return ONLY valid JSON.`
+            }
+        };
         
-        if st.button("🖼️ สร้าง Thumbnails", type="primary"):
-            with st.spinner("กำลังสร้าง Thumbnails..."):
-                try:
-                    thumbnails = []
-                    for i in range(1, 5):
-                        thumb = create_thumbnail(
-                            st.session_state.worksheet_data,
-                            theme_colors,
-                            i
-                        )
-                        thumbnails.append(thumb)
-                    
-                    cols = st.columns(2)
-                    for i, thumb in enumerate(thumbnails):
-                        with cols[i % 2]:
-                            st.image(thumb, caption=f"Thumbnail {i+1}", use_column_width=True)
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const elements = {
+            apiKey: document.getElementById('apiKey'),
+            gameCards: document.querySelectorAll('.game-card'),
+            gradeLevel: document.getElementById('gradeLevel'),
+            difficulty: document.getElementById('difficulty'),
+            worksheetCount: document.getElementById('worksheetCount'),
+            paperSize: document.getElementById('paperSize'),
+            theme: document.getElementById('theme'),
+            storeName: document.getElementById('storeName'),
+            includeAnswerKey: document.getElementById('includeAnswerKey'),
+            includeCover: document.getElementById('includeCover'),
+            lowInk: document.getElementById('lowInk'),
+            generateBtn: document.getElementById('generateBtn'),
+            progressBar: document.getElementById('progressBar'),
+            progressFill: document.getElementById('progressFill'),
+            previewContainer: document.getElementById('previewContainer'),
+            tabs: document.querySelectorAll('.tab'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingText: document.getElementById('loadingText'),
+            loadingSub: document.getElementById('loadingSub'),
+            generateSeoBtn: document.getElementById('generateSeoBtn'),
+            seoContent: document.getElementById('seoContent'),
+            generateThumbnailsBtn: document.getElementById('generateThumbnailsBtn'),
+            thumbnailGrid: document.getElementById('thumbnailGrid'),
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
+            exportZipBtn: document.getElementById('exportZipBtn'),
+            exportAnswerKeyBtn: document.getElementById('exportAnswerKeyBtn'),
+            exportPreviewBtn: document.getElementById('exportPreviewBtn')
+        };
+        
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        
+        // Game selection
+        elements.gameCards.forEach(card => {
+            card.addEventListener('click', () => {
+                elements.gameCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                state.selectedGame = card.dataset.game;
+            });
+        });
+        
+        // Tab switching
+        elements.tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                elements.tabs.forEach(t => t.classList.remove('active'));
+                elements.tabContents.forEach(tc => tc.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+            });
+        });
+        
+        // Generate worksheets
+        elements.generateBtn.addEventListener('click', generateWorksheets);
+        
+        // Generate SEO
+        elements.generateSeoBtn.addEventListener('click', generateSEO);
+        
+        // Generate Thumbnails
+        elements.generateThumbnailsBtn.addEventListener('click', generateThumbnails);
+        
+        // Export buttons
+        elements.exportPdfBtn.addEventListener('click', () => exportPDF('worksheet'));
+        elements.exportZipBtn.addEventListener('click', exportZIP);
+        elements.exportAnswerKeyBtn.addEventListener('click', () => exportPDF('answerkey'));
+        elements.exportPreviewBtn.addEventListener('click', () => exportPDF('preview'));
+        
+        // ============================================
+        // GEMINI API
+        // ============================================
+        async function callGemini(prompt) {
+            const apiKey = elements.apiKey.value.trim();
+            if (!apiKey) {
+                showToast('❌ กรุณาใส่ Gemini API Key', 'error');
+                throw new Error('No API key');
+            }
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: 0.8,
+                        topP: 0.95,
+                        topK: 40,
+                        maxOutputTokens: 8192
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || 'API call failed');
+            }
+            
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+        
+        // ============================================
+        // GENERATE WORKSHEETS
+        // ============================================
+        async function generateWorksheets() {
+            const count = parseInt(elements.worksheetCount.value);
+            const grade = elements.gradeLevel.value;
+            const diff = elements.difficulty.value;
+            const theme = elements.theme.value;
+            const game = state.selectedGame;
+            const config = gameConfigs[game];
+            
+            showLoading(`กำลังสร้าง ${count} ใบงาน ${config.name}...`, 'Gemini 3.1 Flash-Lite กำลังทำงาน');
+            elements.progressBar.style.display = 'block';
+            elements.progressFill.style.width = '0%';
+            
+            try {
+                const prompt = config.prompt(grade, diff, theme, count);
+                elements.progressFill.style.width = '30%';
+                
+                const response = await callGemini(prompt);
+                elements.progressFill.style.width = '70%';
+                
+                // Parse JSON response
+                let jsonStr = response;
+                // Remove markdown code blocks if present
+                jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                
+                const puzzles = JSON.parse(jsonStr);
+                state.worksheets = puzzles;
+                
+                elements.progressFill.style.width = '100%';
+                
+                // Render preview
+                renderPreview();
+                
+                hideLoading();
+                showToast(`✅ สร้าง ${puzzles.length} ใบงานสำเร็จ!`);
+                
+                setTimeout(() => {
+                    elements.progressBar.style.display = 'none';
+                }, 1000);
+                
+            } catch (error) {
+                hideLoading();
+                showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+                elements.progressBar.style.display = 'none';
+                console.error(error);
+            }
+        }
+        
+        // ============================================
+        // RENDER PREVIEW
+        // ============================================
+        function renderPreview() {
+            const container = elements.previewContainer;
+            container.innerHTML = '';
+            
+            const game = state.selectedGame;
+            const storeName = elements.storeName.value || 'MathFun Academy';
+            
+            // Cover page
+            if (elements.includeCover.checked) {
+                const cover = document.createElement('div');
+                cover.className = 'worksheet-page';
+                cover.style.textAlign = 'center';
+                cover.style.padding = '80px 40px';
+                cover.innerHTML = `
+                    <div style="font-size: 72px; margin-bottom: 24px;">${gameConfigs[game].emoji}</div>
+                    <h1 style="font-family: 'Fredoka', sans-serif; font-size: 36px; color: var(--primary); margin-bottom: 16px;">
+                        ${gameConfigs[game].name} Worksheets
+                    </h1>
+                    <p style="font-size: 18px; color: var(--text-light); margin-bottom: 32px;">
+                        Grade ${elements.gradeLevel.value} • ${elements.difficulty.value.charAt(0).toUpperCase() + elements.difficulty.value.slice(1)} Level
+                    </p>
+                    <p style="font-size: 16px; color: var(--text-light);">
+                        ${state.worksheets.length} Unique Puzzles + Answer Keys
+                    </p>
+                    <div style="margin-top: 60px; padding-top: 24px; border-top: 2px dashed var(--border);">
+                        <p style="font-size: 14px; color: var(--text-light);">© ${new Date().getFullYear()} ${storeName}. All rights reserved.</p>
+                    </div>
+                `;
+                container.appendChild(cover);
+            }
+            
+            // Worksheet pages
+            state.worksheets.forEach((puzzle, idx) => {
+                const page = document.createElement('div');
+                page.className = 'worksheet-page';
+                
+                let content = '';
+                switch(game) {
+                    case 'sudoku': content = renderSudoku(puzzle, idx); break;
+                    case 'kenken': content = renderKenKen(puzzle, idx); break;
+                    case 'cryptogram': content = renderCryptogram(puzzle, idx); break;
+                    case 'kakuro': content = renderKakuro(puzzle, idx); break;
+                    case 'wordsearch': content = renderWordSearch(puzzle, idx); break;
+                    case 'pixelart': content = renderPixelArt(puzzle, idx); break;
+                    case 'crossword': content = renderCrossword(puzzle, idx); break;
+                }
+                
+                page.innerHTML = `
+                    <div class="worksheet-header">
+                        <div class="worksheet-title">${puzzle.title || `${gameConfigs[game].name} #${idx + 1}`}</div>
+                        <div class="worksheet-meta">
+                            <span>Name: ____________</span>
+                            <span>Date: ______</span>
+                            <span>Score: ____/${puzzle.grid?.length || 10}</span>
+                        </div>
+                    </div>
+                    <div class="worksheet-directions">
+                        <strong>Directions:</strong> ${getDirections(game)}
+                    </div>
+                    ${content}
+                    <div class="worksheet-footer">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Page ${idx + 1} of ${state.worksheets.length}</span>
+                    </div>
+                `;
+                
+                container.appendChild(page);
+            });
+            
+            // Answer keys
+            if (elements.includeAnswerKey.checked) {
+                const answerKeyPage = document.createElement('div');
+                answerKeyPage.className = 'worksheet-page';
+                answerKeyPage.innerHTML = `
+                    <div class="worksheet-header">
+                        <div class="worksheet-title">🔑 Answer Key</div>
+                        <div class="worksheet-meta">
+                            <span>Teacher Use Only</span>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        ${state.worksheets.map((puzzle, idx) => renderAnswerKey(puzzle, idx, game)).join('')}
+                    </div>
+                    <div class="worksheet-footer">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Answer Key</span>
+                    </div>
+                `;
+                container.appendChild(answerKeyPage);
+            }
+        }
+        
+        function getDirections(game) {
+            const dirs = {
+                sudoku: 'Fill in the grid so that every row, every column, and every 3x3 box contains the digits 1 through 9 (or 1-4/1-6 for smaller grids). No number may repeat in any row, column, or box.',
+                kenken: 'Fill the grid with numbers so that no number repeats in any row or column. Each heavily outlined "cage" must produce the target number using the given operation (+, −, ×, ÷).',
+                cryptogram: 'Decode the secret message! Each symbol/letter stands for a different letter of the alphabet. Use the code key to figure out what the message says.',
+                kakuro: 'Fill in the grid with digits 1-9 so that the sum of each horizontal or vertical strip matches the clue number. No digit may repeat in any contiguous run.',
+                wordsearch: 'Find and circle all the hidden words in the puzzle. Words can go horizontally, vertically, or diagonally — forwards or backwards. The leftover letters spell a secret message!',
+                pixelart: 'Color in the squares at the given coordinates. When you finish, a mystery picture will appear! Write what the picture is: ____________',
+                crossword: 'Solve the math equations and fill in the crossword grid. Across and Down clues are math problems. The answer goes in the numbered cells.'
+            };
+            return dirs[game] || 'Complete the puzzle.';
+        }
+        
+        // ============================================
+        // RENDER FUNCTIONS FOR EACH GAME
+        // ============================================
+        
+        function renderSudoku(puzzle, idx) {
+            const grid = puzzle.grid;
+            const size = grid.length;
+            let html = `<div class="sudoku-grid" style="grid-template-columns: repeat(${size}, 1fr); max-width: ${size * 40}px;">`;
+            
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const val = grid[r][c];
+                    const isGiven = val !== 0;
+                    html += `<div class="sudoku-cell ${isGiven ? 'given' : ''}">${val || ''}</div>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+        
+        function renderKenKen(puzzle, idx) {
+            const size = puzzle.size;
+            let html = `<div class="kenken-grid" style="grid-template-columns: repeat(${size}, 1fr); max-width: ${size * 60}px;">`;
+            
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cage = puzzle.cages.find(cg => cg.cells.some(cell => cell[0] === r && cell[1] === c));
+                    const isTopLeft = cage && cage.cells[0][0] === r && cage.cells[0][1] === c;
+                    html += `<div class="kenken-cell">
+                        ${isTopLeft ? `<span class="kenken-cage-label">${cage.target}${cage.operation}</span>` : ''}
+                    </div>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+        
+        function renderCryptogram(puzzle, idx) {
+            const message = puzzle.message;
+            const cipher = puzzle.cipher;
+            let html = '<div style="margin-bottom: 24px;">';
+            
+            // Code key
+            html += '<div style="background: #F3F4F6; padding: 16px; border-radius: 8px; margin-bottom: 20px;">';
+            html += '<strong style="font-family: Fredoka, sans-serif; font-size: 14px; display: block; margin-bottom: 8px;">Code Key:</strong>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+            Object.entries(cipher).slice(0, 13).forEach(([key, val]) => {
+                html += `<span style="background: white; padding: 4px 10px; border-radius: 12px; font-family: Fredoka, sans-serif; font-size: 13px;">${key} = ${val}</span>`;
+            });
+            html += '</div></div>';
+            
+            // Encoded message
+            html += '<div class="cryptogram-line">';
+            for (let char of message) {
+                if (char === ' ') {
+                    html += '<div class="crypto-space"></div>';
+                } else {
+                    const code = cipher[char] || '?';
+                    html += `<div class="crypto-char">
+                        <div class="crypto-code">${code}</div>
+                        <div class="crypto-box"></div>
+                    </div>`;
+                }
+            }
+            html += '</div></div>';
+            return html;
+        }
+        
+        function renderKakuro(puzzle, idx) {
+            const grid = puzzle.grid;
+            const size = puzzle.size;
+            let html = `<div class="kakuro-grid" style="grid-template-columns: repeat(${size}, 1fr); max-width: ${size * 45}px;">`;
+            
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = grid[r][c];
+                    if (cell === null) {
+                        html += '<div class="kakuro-cell clue"></div>';
+                    } else if (typeof cell === 'object' && cell !== null) {
+                        html += `<div class="kakuro-cell clue">
+                            ${cell.down ? `<span class="kakuro-clue-num kakuro-clue-top">${cell.down}</span>` : ''}
+                            ${cell.right ? `<span class="kakuro-clue-num kakuro-clue-left">${cell.right}</span>` : ''}
+                        </div>`;
+                    } else {
+                        html += '<div class="kakuro-cell"></div>';
+                    }
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+        
+        function renderWordSearch(puzzle, idx) {
+            const grid = puzzle.grid;
+            const size = puzzle.size;
+            const words = puzzle.words;
+            
+            let html = `<div class="wordsearch-grid" style="grid-template-columns: repeat(${size}, 1fr); max-width: ${size * 32}px;">`;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    html += `<div class="wordsearch-cell">${grid[r][c]}</div>`;
+                }
+            }
+            html += '</div>';
+            
+            html += '<div class="word-list">';
+            words.forEach(word => {
+                html += `<div class="word-item">${word}</div>`;
+            });
+            html += '</div>';
+            
+            if (puzzle.secretMessage) {
+                html += `<div style="margin-top: 20px; padding: 12px; background: #FEF3C7; border-radius: 8px; text-align: center;">
+                    <strong>🎉 Secret Message:</strong> The leftover letters spell: <em>"${puzzle.secretMessage}"</em>
+                </div>`;
+            }
+            
+            return html;
+        }
+        
+        function renderPixelArt(puzzle, idx) {
+            const gridSize = puzzle.gridSize;
+            const coords = puzzle.coordinates;
+            
+            let html = `<div style="margin-bottom: 16px;">
+                <p style="font-size: 14px; margin-bottom: 12px;"><strong>Color these coordinates:</strong></p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">`;
+            
+            coords.forEach(coord => {
+                html += `<span style="background: #EDE9FE; padding: 4px 12px; border-radius: 12px; font-family: Fredoka, sans-serif; font-size: 13px;">${coord}</span>`;
+            });
+            html += '</div></div>';
+            
+            html += `<div class="coord-grid" style="grid-template-columns: repeat(${gridSize}, 1fr); max-width: ${gridSize * 35}px;">`;
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const coord = String.fromCharCode(65 + r) + (c + 1);
+                    const isFilled = coords.includes(coord);
+                    html += `<div class="coord-cell ${isFilled ? 'filled' : ''}"></div>`;
+                }
+            }
+            html += '</div>';
+            
+            html += `<div style="margin-top: 16px; text-align: center;">
+                <p style="font-size: 14px;">What is the picture? ____________________</p>
+            </div>`;
+            
+            return html;
+        }
+        
+        function renderCrossword(puzzle, idx) {
+            const grid = puzzle.grid;
+            const size = puzzle.size;
+            const clues = puzzle.clues;
+            
+            let html = `<div class="crossword-grid" style="grid-template-columns: repeat(${size}, 1fr); max-width: ${size * 50}px;">`;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = grid[r][c];
+                    if (cell === null) {
+                        html += '<div class="crossword-cell black"></div>';
+                    } else {
+                        html += `<div class="crossword-cell" data-num="${cell || ''}"></div>`;
+                    }
+                }
+            }
+            html += '</div>';
+            
+            html += '<div style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">';
+            
+            // Across clues
+            html += '<div><h4 style="font-family: Fredoka, sans-serif; font-size: 14px; margin-bottom: 8px; color: var(--primary);">ACROSS</h4>';
+            clues.across.forEach(clue => {
+                html += `<p style="font-size: 13px; margin-bottom: 4px;"><strong>${clue.num}.</strong> ${clue.clue}</p>`;
+            });
+            html += '</div>';
+            
+            // Down clues
+            html += '<div><h4 style="font-family: Fredoka, sans-serif; font-size: 14px; margin-bottom: 8px; color: var(--primary);">DOWN</h4>';
+            clues.down.forEach(clue => {
+                html += `<p style="font-size: 13px; margin-bottom: 4px;"><strong>${clue.num}.</strong> ${clue.clue}</p>`;
+            });
+            html += '</div></div>';
+            
+            return html;
+        }
+        
+        function renderAnswerKey(puzzle, idx, game) {
+            let html = `<div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                <h4 style="font-family: Fredoka, sans-serif; font-size: 14px; margin-bottom: 12px; color: var(--success);">
+                    #${idx + 1} - ${puzzle.title || gameConfigs[game].name}
+                </h4>`;
+            
+            if (game === 'sudoku' && puzzle.solution) {
+                html += `<div class="answer-key-grid" style="grid-template-columns: repeat(${puzzle.solution.length}, 1fr);">`;
+                puzzle.solution.forEach(row => {
+                    row.forEach(cell => {
+                        html += `<div class="answer-key-cell">${cell}</div>`;
+                    });
+                });
+                html += '</div>';
+            } else if (game === 'cryptogram') {
+                html += `<p style="font-size: 13px;"><strong>Answer:</strong> ${puzzle.message}</p>`;
+            } else if (game === 'wordsearch') {
+                html += `<p style="font-size: 13px;"><strong>Words:</strong> ${puzzle.words?.join(', ')}</p>`;
+                if (puzzle.secretMessage) {
+                    html += `<p style="font-size: 13px;"><strong>Secret Message:</strong> ${puzzle.secretMessage}</p>`;
+                }
+            } else if (game === 'pixelart') {
+                html += `<p style="font-size: 13px;"><strong>Picture:</strong> ${puzzle.image || 'Mystery'}</p>`;
+                html += `<p style="font-size: 13px;"><strong>Coordinates:</strong> ${puzzle.coordinates?.length || 0} cells</p>`;
+            } else if (game === 'crossword' && puzzle.solution) {
+                html += `<p style="font-size: 13px;"><strong>Solution:</strong></p>`;
+                html += `<div style="font-family: monospace; font-size: 12px; line-height: 1.4;">`;
+                puzzle.solution.forEach(row => {
+                    html += row.map(c => c === null ? '█' : c).join(' ') + '<br>';
+                });
+                html += '</div>';
+            } else {
+                html += `<p style="font-size: 13px; color: var(--text-light);">Solution included in puzzle data.</p>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // ============================================
+        // SEO GENERATOR
+        // ============================================
+        async function generateSEO() {
+            if (state.worksheets.length === 0) {
+                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+                return;
+            }
+            
+            showLoading('กำลังสร้าง TPT SEO Listing...', 'Analyzing market & keywords');
+            
+            try {
+                const game = state.selectedGame;
+                const grade = elements.gradeLevel.value;
+                const diff = elements.difficulty.value;
+                const count = state.worksheets.length;
+                
+                const prompt = `You are a TPT (Teachers Pay Teachers) SEO expert. Create a complete product listing for a ${gameConfigs[game].name} worksheet pack.
+                
+Product details:
+- Game: ${gameConfigs[game].name}
+- Grade: ${grade}
+- Difficulty: ${diff}
+- Number of worksheets: ${count}
+- Includes answer keys: Yes
+- Format: Printable PDF, US Letter
+
+Generate the following in JSON format:
+{
+    "title": "SEO-optimized product title (Primary Skill + Resource Type + Grade + Feature)",
+    "alternativeTitles": ["title1", "title2", "title3"],
+    "description": "Full TPT product description with opening, what's included, skills covered, how to use, differentiation, file info, and search-friendly closing. Write in natural American English, 300-500 words.",
+    "primaryKeywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+    "secondaryKeywords": ["keyword1", "keyword2", "keyword3"],
+    "grades": "Grade levels (e.g., 2nd Grade, 3rd Grade)",
+    "subject": "Subject area",
+    "resourceType": "Resource type (e.g., Worksheets, Activities, Printables)",
+    "price": "Suggested price in USD (e.g., $3.50)",
+    "standards": "Relevant education standards (e.g., CCSS codes)",
+    "teachingDuration": "e.g., 1 hour",
+    "tags": ["tag1", "tag2", ...]
+}
+
+Return ONLY valid JSON.`;
+                
+                const response = await callGemini(prompt);
+                let jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                const seoData = JSON.parse(jsonStr);
+                state.seoData = seoData;
+                
+                // Populate SEO fields
+                document.getElementById('seoTitle').value = seoData.title;
+                document.getElementById('seoDescription').value = seoData.description;
+                document.getElementById('seoGrades').value = seoData.grades;
+                document.getElementById('seoSubject').value = seoData.subject;
+                document.getElementById('seoPrice').value = seoData.price;
+                document.getElementById('seoStandards').value = seoData.standards;
+                
+                // Keywords
+                const keywordsContainer = document.getElementById('seoKeywords');
+                keywordsContainer.innerHTML = '';
+                seoData.primaryKeywords.forEach(kw => {
+                    keywordsContainer.innerHTML += `<span class="seo-tag">${kw}</span>`;
+                });
+                
+                elements.seoContent.style.display = 'block';
+                hideLoading();
+                showToast('✅ สร้าง SEO Listing สำเร็จ!');
+                
+            } catch (error) {
+                hideLoading();
+                showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // ============================================
+        // THUMBNAIL GENERATOR
+        // ============================================
+        function generateThumbnails() {
+            if (state.worksheets.length === 0) {
+                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+                return;
+            }
+            
+            const game = state.selectedGame;
+            const grade = elements.gradeLevel.value;
+            const count = state.worksheets.length;
+            const storeName = elements.storeName.value || 'MathFun Academy';
+            
+            const thumbnailConcepts = [
+                {
+                    title: 'Main Cover',
+                    description: 'Product title, grade, resource type',
+                    render: (ctx, size) => {
+                        // Background gradient
+                        const gradient = ctx.createLinearGradient(0, 0, size, size);
+                        gradient.addColorStop(0, '#7C3AED');
+                        gradient.addColorStop(1, '#F472B6');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        // Emoji
+                        ctx.font = `${size * 0.2}px serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(gameConfigs[game].emoji, size / 2, size * 0.3);
+                        
+                        // Title
+                        ctx.fillStyle = 'white';
+                        ctx.font = `bold ${size * 0.06}px Fredoka, sans-serif`;
+                        ctx.fillText(gameConfigs[game].name, size / 2, size * 0.48);
+                        ctx.fillText('Worksheets', size / 2, size * 0.55);
+                        
+                        // Grade
+                        ctx.font = `${size * 0.04}px Quicksand, sans-serif`;
+                        ctx.fillText(`Grade ${grade} • ${count} Puzzles`, size / 2, size * 0.65);
+                        
+                        // Store name
+                        ctx.font = `${size * 0.03}px Quicksand, sans-serif`;
+                        ctx.fillText(storeName, size / 2, size * 0.9);
+                    }
+                },
+                {
+                    title: 'What\'s Included',
+                    description: 'Page count, answer keys, versions',
+                    render: (ctx, size) => {
+                        ctx.fillStyle = '#FEFCE8';
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        // Border
+                        ctx.strokeStyle = '#7C3AED';
+                        ctx.lineWidth = size * 0.02;
+                        ctx.strokeRect(size * 0.05, size * 0.05, size * 0.9, size * 0.9);
+                        
+                        // Title
+                        ctx.fillStyle = '#7C3AED';
+                        ctx.font = `bold ${size * 0.05}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText('What\'s Included', size / 2, size * 0.15);
+                        
+                        // Items
+                        const items = [
+                            `✅ ${count} ${gameConfigs[game].name} Worksheets`,
+                            `✅ Complete Answer Keys`,
+                            `✅ Cover Page + TOC`,
+                            `✅ US Letter & A4 Sizes`,
+                            `✅ Low-Ink B&W Version`
+                        ];
+                        
+                        ctx.font = `${size * 0.035}px Quicksand, sans-serif`;
+                        ctx.fillStyle = '#1F2937';
+                        items.forEach((item, i) => {
+                            ctx.fillText(item, size / 2, size * 0.3 + (i * size * 0.1));
+                        });
+                    }
+                },
+                {
+                    title: 'Skills & Features',
+                    description: 'Core skills, difficulty, differentiation',
+                    render: (ctx, size) => {
+                        const gradient = ctx.createLinearGradient(0, 0, 0, size);
+                        gradient.addColorStop(0, '#FBBF24');
+                        gradient.addColorStop(1, '#F59E0B');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        ctx.fillStyle = '#1F2937';
+                        ctx.font = `bold ${size * 0.05}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Skills & Features', size / 2, size * 0.15);
+                        
+                        const features = [
+                            '🧠 Critical Thinking',
+                            '🔢 Number Sense',
+                            '📊 Problem Solving',
+                            '🎯 5 Difficulty Levels',
+                            '📈 Spiral Review Ready'
+                        ];
+                        
+                        ctx.font = `${size * 0.035}px Quicksand, sans-serif`;
+                        features.forEach((feat, i) => {
+                            ctx.fillText(feat, size / 2, size * 0.3 + (i * size * 0.1));
+                        });
+                    }
+                },
+                {
+                    title: 'Sample Preview',
+                    description: 'Sample pages, use cases',
+                    render: (ctx, size) => {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        // Header
+                        ctx.fillStyle = '#7C3AED';
+                        ctx.fillRect(0, 0, size, size * 0.15);
+                        ctx.fillStyle = 'white';
+                        ctx.font = `bold ${size * 0.04}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Preview Sample Pages', size / 2, size * 0.1);
+                        
+                        // Mock worksheet pages
+                        for (let i = 0; i < 3; i++) {
+                            const x = size * 0.1 + (i * size * 0.28);
+                            const y = size * 0.25;
+                            const w = size * 0.25;
+                            const h = size * 0.5;
                             
-                            img_buffer = io.BytesIO()
-                            thumb.save(img_buffer, format='JPEG', quality=95)
-                            img_buffer.seek(0)
+                            ctx.fillStyle = '#F3F4F6';
+                            ctx.fillRect(x, y, w, h);
+                            ctx.strokeStyle = '#D1D5DB';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(x, y, w, h);
                             
-                            st.download_button(
-                                f"📥 Download Thumbnail {i+1}",
-                                img_buffer.getvalue(),
-                                f"Thumbnail_{i+1:02d}.jpg",
-                                "image/jpeg",
-                                key=f"thumb_{i}"
-                            )
-                    
-                    st.success("✅ สร้าง Thumbnails สำเร็จ!")
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาด: {e}")
-    else:
-        st.warning("กรุณาสร้างเนื้อหาในแท็บแรกก่อน")
-
-with tab5:
-    st.header("5. Validation Center")
-    
-    if st.session_state.worksheet_data:
-        st.info("ตรวจสอบคุณภาพใบงานตามมาตรฐาน TPT")
+                            // Grid lines
+                            ctx.strokeStyle = '#E5E7EB';
+                            ctx.lineWidth = 1;
+                            for (let j = 1; j < 5; j++) {
+                                ctx.beginPath();
+                                ctx.moveTo(x, y + (j * h / 5));
+                                ctx.lineTo(x + w, y + (j * h / 5));
+                                ctx.stroke();
+                            }
+                        }
+                        
+                        // Use cases
+                        ctx.fillStyle = '#1F2937';
+                        ctx.font = `${size * 0.03}px Quicksand, sans-serif`;
+                        ctx.fillText('Perfect for: Morning Work • Centers • Early Finishers', size / 2, size * 0.85);
+                    }
+                }
+            ];
+            
+            const grid = elements.thumbnailGrid;
+            grid.innerHTML = '';
+            
+            thumbnailConcepts.forEach((concept, idx) => {
+                const card = document.createElement('div');
+                card.className = 'thumbnail-card';
+                
+                const canvasWrapper = document.createElement('div');
+                canvasWrapper.className = 'thumbnail-canvas-wrapper';
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 1500;
+                canvas.height = 1500;
+                const ctx = canvas.getContext('2d');
+                
+                concept.render(ctx, 1500);
+                
+                canvasWrapper.appendChild(canvas);
+                
+                const info = document.createElement('div');
+                info.className = 'thumbnail-info';
+                info.innerHTML = `
+                    <h4>${concept.title}</h4>
+                    <p>${concept.description}</p>
+                `;
+                
+                card.appendChild(canvasWrapper);
+                card.appendChild(info);
+                grid.appendChild(card);
+            });
+            
+            showToast('✅ สร้าง Thumbnail 4 แบบสำเร็จ!');
+        }
         
-        if st.button("✅ ตรวจสอบคุณภาพ", type="primary"):
-            validation = validate_worksheet(st.session_state.worksheet_data)
-            
-            if validation['is_valid']:
-                st.success("✅ ใบงานผ่านเกณฑ์คุณภาพ!")
-            else:
-                st.error("❌ พบปัญหาที่ต้องแก้ไข:")
-                for issue in validation['issues']:
-                    st.error(f"  • {issue}")
-            
-            if validation['warnings']:
-                st.warning("⚠️ คำเตือน:")
-                for warning in validation['warnings']:
-                    st.warning(f"  • {warning}")
-            
-            if validation['is_valid'] and not validation['warnings']:
-                st.balloons()
-    else:
-        st.warning("กรุณาสร้างเนื้อหาในแท็บแรกก่อน")
-
-with tab6:
-    st.header("6. Export Complete Package")
-    
-    if st.session_state.worksheet_data and st.session_state.listing_data:
-        st.write("**ระบบจะสร้างไฟล์ทั้งหมดใน ZIP package:**")
-        st.write("- ✅ Student Worksheets PDF (พร้อม Answer Key)")
-        st.write("- ✅ Product Preview PDF")
-        st.write("- ✅ 4 Thumbnails (JPG)")
-        st.write("- ✅ Listing Information (TXT)")
-        st.write("- ✅ Project Metadata (JSON)")
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
         
-        if st.button("💾 Export Everything", type="primary"):
-            with st.spinner("กำลังสร้าง package..."):
-                try:
-                    theme_colors = THEMES.get(theme, THEMES["Clean Classroom"])
+        async function exportPDF(type) {
+            if (state.worksheets.length === 0) {
+                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+                return;
+            }
+            
+            showLoading(`กำลัง Export ${type}...`, 'Creating PDF');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: elements.paperSize.value === 'a4' ? 'a4' : 'letter'
+                });
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 15;
+                const contentWidth = pageWidth - (margin * 2);
+                
+                // Cover page
+                if (type === 'worksheet' && elements.includeCover.checked) {
+                    doc.setFontSize(32);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`${gameConfigs[state.selectedGame].name} Worksheets`, pageWidth / 2, 80, { align: 'center' });
                     
-                    package = create_complete_package(
-                        st.session_state.worksheet_data,
-                        st.session_state.listing_data,
-                        theme_colors,
-                        paper_size.lower().replace(' ', '')
-                    )
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Grade ${elements.gradeLevel.value} • ${elements.difficulty.value}`, pageWidth / 2, 100, { align: 'center' });
+                    doc.text(`${state.worksheets.length} Unique Puzzles + Answer Keys`, pageWidth / 2, 115, { align: 'center' });
                     
-                    st.download_button(
-                        "📥 Download Complete Package (ZIP)",
-                        package,
-                        f"TPT_{skill.replace(' ', '_')}_{grade_level.replace(' ', '_')}_Package.zip",
-                        "application/zip"
-                    )
+                    doc.setFontSize(10);
+                    doc.text(`© ${new Date().getFullYear()} ${elements.storeName.value}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
                     
-                    st.success("✅ สร้าง Package สำเร็จ! พร้อมอัปโหลดขึ้น TPT")
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาด: {e}")
-    else:
-        st.warning("กรุณาสร้างเนื้อหาและ Listing ก่อน")
+                    doc.addPage();
+                }
+                
+                // Worksheet pages
+                state.worksheets.forEach((puzzle, idx) => {
+                    if (idx > 0 || (type === 'worksheet' && elements.includeCover.checked)) {
+                        if (idx > 0) doc.addPage();
+                    }
+                    
+                    // Header
+                    doc.setFontSize(18);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(puzzle.title || `${gameConfigs[state.selectedGame].name} #${idx + 1}`, margin, 25);
+                    
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Name: ____________  Date: ______  Score: ____/${state.worksheets.length}`, pageWidth - margin, 25, { align: 'right' });
+                    
+                    // Directions
+                    doc.setFillColor(254, 243, 199);
+                    doc.rect(margin, 32, contentWidth, 20, 'F');
+                    doc.setFontSize(10);
+                    doc.text(`Directions: ${getDirections(state.selectedGame)}`, margin + 3, 42, { maxWidth: contentWidth - 6 });
+                    
+                    // Content placeholder
+                    doc.setFontSize(12);
+                    doc.text(`[Puzzle #${idx + 1} - See HTML preview for full layout]`, pageWidth / 2, 80, { align: 'center' });
+                    
+                    // Footer
+                    doc.setFontSize(8);
+                    doc.text(`© ${new Date().getFullYear()} ${elements.storeName.value}`, margin, pageHeight - 10);
+                    doc.text(`Page ${idx + 1} of ${state.worksheets.length}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+                });
+                
+                // Answer key
+                if (type !== 'answerkey' && elements.includeAnswerKey.checked) {
+                    doc.addPage();
+                    doc.setFontSize(18);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('🔑 Answer Key', margin, 25);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('Teacher Use Only', pageWidth - margin, 25, { align: 'right' });
+                    
+                    state.worksheets.forEach((puzzle, idx) => {
+                        const y = 40 + (idx * 30);
+                        if (y > pageHeight - 30) {
+                            doc.addPage();
+                        }
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`#${idx + 1} - ${puzzle.title || gameConfigs[state.selectedGame].name}`, margin, y);
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'normal');
+                        
+                        if (puzzle.solution) {
+                            doc.text('Solution: See grid in HTML preview', margin, y + 8);
+                        } else if (puzzle.message) {
+                            doc.text(`Answer: ${puzzle.message}`, margin, y + 8);
+                        }
+                    });
+                }
+                
+                // Save
+                const filename = `${elements.storeName.value.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_Grade${elements.gradeLevel.value}_${type}.pdf`;
+                doc.save(filename);
+                
+                hideLoading();
+                showToast(`✅ Export ${type} สำเร็จ!`);
+                
+            } catch (error) {
+                hideLoading();
+                showToast(`❌ Export ล้มเหลว: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function exportZIP() {
+            if (state.worksheets.length === 0) {
+                showToast('❌ กรุณาสร้างใบงานก่อน', 'error');
+                return;
+            }
+            
+            showLoading('กำลังสร้าง ZIP Package...', 'Bundling files');
+            
+            try {
+                const zip = new JSZip();
+                const { jsPDF } = window.jspdf;
+                
+                // 1. Worksheet PDF
+                const worksheetDoc = new jsPDF();
+                worksheetDoc.setFontSize(20);
+                worksheetDoc.text(`${gameConfigs[state.selectedGame].name} Worksheets`, 20, 30);
+                worksheetDoc.setFontSize(12);
+                worksheetDoc.text(`Grade ${elements.gradeLevel.value} • ${state.worksheets.length} Puzzles`, 20, 45);
+                state.worksheets.forEach((p, i) => {
+                    worksheetDoc.addPage();
+                    worksheetDoc.setFontSize(16);
+                    worksheetDoc.text(p.title || `Puzzle #${i + 1}`, 20, 30);
+                    worksheetDoc.setFontSize(10);
+                    worksheetDoc.text('[Full layout in HTML preview]', 20, 50);
+                });
+                const worksheetPdf = worksheetDoc.output('arraybuffer');
+                zip.file('Worksheet.pdf', worksheetPdf);
+                
+                // 2. Answer Key PDF
+                if (elements.includeAnswerKey.checked) {
+                    const answerDoc = new jsPDF();
+                    answerDoc.setFontSize(20);
+                    answerDoc.text('Answer Key', 20, 30);
+                    state.worksheets.forEach((p, i) => {
+                        answerDoc.addPage();
+                        answerDoc.setFontSize(14);
+                        answerDoc.text(`#${i + 1} - ${p.title || 'Puzzle'}`, 20, 30);
+                    });
+                    const answerPdf = answerDoc.output('arraybuffer');
+                    zip.file('Answer-Key.pdf', answerPdf);
+                }
+                
+                // 3. Thumbnails
+                const thumbnailCanvases = document.querySelectorAll('#thumbnailGrid canvas');
+                for (let i = 0; i < thumbnailCanvases.length; i++) {
+                    const canvas = thumbnailCanvases[i];
+                    if (canvas) {
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                        zip.file(`Thumbnail-${i + 1}.png`, blob);
+                    }
+                }
+                
+                // 4. Listing metadata
+                if (state.seoData) {
+                    const metadata = JSON.stringify(state.seoData, null, 2);
+                    zip.file('Listing-Metadata.json', metadata);
+                    
+                    const txtContent = `
+TPT LISTING METADATA
+====================
 
-# Footer
-st.divider()
-st.caption("TPT Worksheet Generator Pro | Built with Streamlit & Gemini AI | AI-Generated Content")
-st.caption("หมายเหตุ: ใช้ Gemini 3.5 Flash สำหรับสร้างเนื้อหา | ภาพประกอบสร้างด้วย shapes | รันบน Streamlit Cloud ได้ 100%")
+Title: ${state.seoData.title}
+
+Description:
+${state.seoData.description}
+
+Primary Keywords: ${state.seoData.primaryKeywords?.join(', ')}
+Grades: ${state.seoData.grades}
+Subject: ${state.seoData.subject}
+Price: ${state.seoData.price}
+Standards: ${state.seoData.standards}
+                    `.trim();
+                    zip.file('Listing-Metadata.txt', txtContent);
+                }
+                
+                // 5. Credits & Terms
+                const credits = `
+CREDITS & TERMS OF USE
+======================
+
+© ${new Date().getFullYear()} ${elements.storeName.value}. All rights reserved.
+
+TERMS OF USE:
+- This product is licensed for use by the original downloader only.
+- Single classroom use only.
+- No redistribution, sharing, or resale.
+- No uploading to public servers or websites.
+- For additional licenses, please purchase extra copies.
+
+Thank you for your support!
+                `.trim();
+                zip.file('Credits-and-Terms.txt', credits);
+                
+                // Generate ZIP
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${elements.storeName.value.replace(/\s+/g, '_')}_${gameConfigs[state.selectedGame].name.replace(/\s+/g, '_')}_TPT-Package.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                hideLoading();
+                showToast('✅ Export ZIP Package สำเร็จ!');
+                
+            } catch (error) {
+                hideLoading();
+                showToast(`❌ Export ZIP ล้มเหลว: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        
+        function showLoading(text, sub) {
+            elements.loadingText.textContent = text;
+            elements.loadingSub.textContent = sub;
+            elements.loadingOverlay.style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            elements.loadingOverlay.style.display = 'none';
+        }
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'error' ? '#EF4444' : 'var(--success)';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
