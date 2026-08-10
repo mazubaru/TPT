@@ -1661,28 +1661,14 @@
 
     <!-- HEADER -->
     <header class="app-header">
-                <!-- ต่อส่วนที่มีอยู่ของ header เป็น -->
         <div class="app-logo">
+            <div class="app-logo-icon">✨</div>
             <span class="app-logo-text">GridMind Worksheet Studio</span>
         </div>
-
-<!-- เพิ่มเมนูเลือก Provider API -->
-                <div class="api-select-wrapper">
-                <select id="apiProvider" style="width: 130px; margin: 4px 0 0 8px;">
-                    <option value="gemini">Gemini</option>
-                    <option value="groq">GROQ</option>
-                    <option value="openrouter">OpenRouter</option>
-                    <option value="deepseek">DeepSeek</option>
-                </select>
-                
-                <div class="api-status" id="apiStatus" style="margin-left: 8px; min-width: 80px; border-radius: 4px; background: #2d3748; display: inline-block;"></div>
-
-                <input type="password" class="api-key-input" id="apiKey" style="margin-left: 8px;" 
-                 placeholder="Enter API Key (required)">
-  
-                <button class="btn btn-primary btn-sm" id="apiConnectBtn" style="margin-left: 8px;">Connect</button>
-            </div>
-
+        <div class="header-controls">
+            <div class="api-key-wrapper">
+                <span class="api-key-icon">🔑</span>
+                <input type="password" class="api-key-input" id="apiKey" placeholder="Enter Gemini API Key...">
             </div>
         </div>
     </header>
@@ -2264,107 +2250,39 @@ Return ONLY valid JSON, no markdown.`
         // ================================================
         // DOM REFERENCES
         // ================================================
-        // ในส่วนที่ประกาศ DOM
-const DOM = {
-  apiProvider: document.getElementById('apiProvider'),
-  apiKey: document.getElementById('apiKey'),
-  apiConnectBtn: document.getElementById('apiConnectBtn')
-};
-
-// ฟังก์ชันเรียก API สำหรับทุกโมเดล
-function callLlm(provider, prompt, isZeroShot = false) {
-  switch(provider) {
-    case 'gemini':
-      return callGemini(prompt, isZeroShot);
-    case 'groq':
-      return groqCall(prompt, isZeroShot);
-    case 'openrouter':
-      return openRouterCall(prompt, isZeroShot);
-    case 'deepseek':
-      return deepSeekCall(prompt, isZeroShot);
-    default:
-      throw new Error('Unsupported provider');
-  }
-}
-
-// ฟังก์ชันเฉพาะสำหรับแต่ละ Provider
-function callGemini(prompt, isZeroShot) {
-  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: isZeroShot ? 0 : 0.7,
-        maxOutputTokens: isZeroShot ? 5000 : 8192
-      }
-    })
-  }).then(r => r.json()).then(d => d.candidates[0].content.parts[0].text);
-}
-
-function groqCall(prompt, isZeroShot) {
-  const model = isZeroShot ? 'mixtral-8x7b-32768' : 'llama3-8b-8192';
-  return fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: isZeroShot ? 0 : 0.7
-    })
-  }).then(r => r.json()).then(d => d.choices[0].message.content);
-}
-
-function openRouterCall(prompt, isZeroShot) {
-  const model = isZeroShot ? 'google/gemma-7b-it' : 'mistralai/mistral-7b-instruct-v0.2';
-  return fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': window.location.href
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: isZeroShot ? 0 : 0.7
-    })
-  }).then(r => r.json()).then(d => d.results[0].message.content);
-}
-
-function deepSeekCall(prompt, isZeroShot) {
-  return fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: isZeroShot ? 0 : 0.7
-    })
-  }).then(r => r.json()).then(d => d.choices[0].message.content);
-}
-
-// ปรับเปลี่ยนฟังก์ชันการเรียก API ใน generateWorksheets
-async function generateWorksheets() {
-  // ... existing code ...
-  const prompt = getPrompt(APP.selectedType, DOM.gradeLevel.value, DOM.difficulty.value, DOM.pageCount.value);
-  showLoading(`Generating ${count} worksheets...`, 'Processing...');
-  DOM.progressBar.style.display = 'block';
-  
-  try {
-    const response = await callLlm(DOM.apiProvider.value, prompt);
-    // ... process response and generate worksheets ...
-  } catch (error) {
-    showToast(`API Error: ${error.message}`, 'error');
-  }
-}
-
+        const DOM = {
+            apiKey: document.getElementById('apiKey'),
+            categoryTabs: document.getElementById('categoryTabs'),
+            worksheetTypeGrid: document.getElementById('worksheetTypeGrid'),
+            gradeLevel: document.getElementById('gradeLevel'),
+            difficulty: document.getElementById('difficulty'),
+            pageCount: document.getElementById('pageCount'),
+            paperSize: document.getElementById('paperSize'),
+            worksheetTheme: document.getElementById('worksheetTheme'),
+            storeName: document.getElementById('storeName'),
+            includeAnswerKey: document.getElementById('includeAnswerKey'),
+            includeCover: document.getElementById('includeCover'),
+            lowInk: document.getElementById('lowInk'),
+            generateBtn: document.getElementById('generateBtn'),
+            progressBar: document.getElementById('progressBar'),
+            progressFill: document.getElementById('progressFill'),
+            previewContainer: document.getElementById('previewContainer'),
+            mainTabs: document.querySelectorAll('.main-tab'),
+            tabPanels: document.querySelectorAll('.tab-panel'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingText: document.getElementById('loadingText'),
+            loadingSub: document.getElementById('loadingSub'),
+            generateSeoBtn: document.getElementById('generateSeoBtn'),
+            seoContent: document.getElementById('seoContent'),
+            generateThumbnailsBtn: document.getElementById('generateThumbnailsBtn'),
+            thumbnailGrid: document.getElementById('thumbnailGrid'),
+            nicheGrid: document.getElementById('nicheGrid'),
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
+            exportZipBtn: document.getElementById('exportZipBtn'),
+            exportAnswerKeyBtn: document.getElementById('exportAnswerKeyBtn'),
+            exportImagesBtn: document.getElementById('exportImagesBtn'),
+            toastContainer: document.getElementById('toastContainer')
+        };
 
         // ================================================
         // INITIALIZATION
@@ -4313,99 +4231,6 @@ Return ONLY valid JSON, no markdown.`;
         // ================================================
         init();
 
-        // ================================================
-        // FIXED exportPDF WITH BLANK-PDF GUARDS
-        // ================================================
-        async function exportPDF(exportType) {
-            if (APP.worksheets.length === 0) {
-                showToast('Generate first', 'error');
-                return;
-            }
-            showLoading(`Exporting ${exportType}...`, 'Rendering pages...');
-            DOM.progressBar.style.display = 'block';
-            DOM.progressFill.style.width = '5%';
-            try {
-                const { jsPDF } = window.jspdf;
-                const format = DOM.paperSize.value === 'a4' ? 'a4' : 'letter';
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format });
-                const w = pdf.internal.pageSize.getWidth();
-                const h = pdf.internal.pageSize.getHeight();
-                const pages = DOM.previewContainer.querySelectorAll('.ws-page');
-                if (pages.length === 0) throw new Error('No pages found');
-                let isFirst = true;
-                for (let i = 0; i < pages.length; i++) {
-                    const el = pages[i];
-                    el.style.display = 'block';
-                    el.style.visibility = 'visible';
-                    el.style.position = 'relative';
-                    await new Promise(r => requestAnimationFrame(r));
-                    if (!el.offsetWidth || !el.offsetHeight) continue;
-                    DOM.loadingSub.textContent = `Page ${i+1}/${pages.length}...`;
-                    const canvas = await html2canvas(el, {scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:'#ffffff',width:el.offsetWidth,height:el.offsetHeight});
-                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-                    if (!imgData || imgData === 'data:,') throw new Error(`Page ${i+1} blank`);
-                    if (!isFirst) pdf.addPage();
-                    pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
-                    isFirst = false;
-                    canvas.width = canvas.height = 0;
-                    DOM.progressFill.style.width = `${((i+1)/pages.length)*90}%`;
-                    await new Promise(r => setTimeout(r, 50));
-                }
-                const storeName = DOM.storeName.value || 'MathFun Academy';
-                const typeInfo = getTypeInfo(APP.selectedType);
-                const filename = `${storeName.replace(/\s+/g, '_')}_${typeInfo.name.replace(/\s+/g, '_')}_Grade${DOM.gradeLevel.value}_${exportType}.pdf`;
-                pdf.save(filename);
-                DOM.progressFill.style.width = '100%';
-                hideLoading();
-                showToast(`Saved: ${filename}`, 'success');
-                setTimeout(() => DOM.progressBar.style.display = 'none', 1000);
-            } catch (error) {
-                hideLoading();
-                showToast(`Export error: ${error.message}`, 'error');
-                DOM.progressBar.style.display = 'none';
-                console.error(error);
-            }
-        }
-
-        function printAsPDF() {
-            if (APP.worksheets.length === 0) {
-                showToast('Generate first', 'error');
-                return;
-            }
-            window.print();
-        }
-
-        // Provider UI handlers
-        DOM.apiProvider.addEventListener('change', () => {
-            const p = DOM.apiProvider.value;
-            const ph = {
-                gemini: 'Enter Gemini API Key...',
-                groq: 'Enter Groq API Key...',
-                openrouter: 'Enter OpenRouter API Key...',
-                together: 'Enter Together AI API Key...',
-                ollama: 'Leave blank for local Ollama',
-                deepseek: 'Enter DeepSeek API Key...'
-            };
-            DOM.apiKey.placeholder = ph[p] || 'Enter API Key...';
-            DOM.apiStatus.textContent = '';
-            DOM.apiStatus.style.backgroundColor = '';
-        });
-        DOM.apiConnectBtn.addEventListener('click', () => {
-            const p = DOM.apiProvider.value;
-            const k = DOM.apiKey.value.trim();
-            if (!k && ['gemini','groq','openrouter','together','deepseek'].includes(p)) {
-                DOM.apiStatus.textContent = '❌ Required';
-                DOM.apiStatus.style.backgroundColor = '#EF4444';
-                return;
-            }
-            DOM.apiStatus.textContent = '✅ Ready';
-            DOM.apiStatus.style.backgroundColor = '#10B981';
-        });
-
-        // ================================================
-        // INIT
-        // ================================================
-        init();
     </script>
 </body>
 
