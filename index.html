@@ -1668,7 +1668,15 @@
         <div class="header-controls">
             <div class="api-key-wrapper">
                 <span class="api-key-icon">🔑</span>
-                <input type="password" class="api-key-input" id="apiKey" placeholder="Enter Gemini API Key...">
+                <select id="aiProvider" class="form-select" style="width:160px; display:inline-block; margin-right:8px;">
+                    <option value="gemini" selected>Gemini (Google)</option>
+                    <option value="openrouter">OpenRouter (free)</option>
+                    <option value="qwen">Qwen (Alibaba)</option>
+                    <option value="groq">Groq</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+                <input type="password" class="api-key-input" id="apiKey" placeholder="Enter API Key for selected provider...">
             </div>
         </div>
     </header>
@@ -2252,6 +2260,7 @@ Return ONLY valid JSON, no markdown.`
         // ================================================
         const DOM = {
             apiKey: document.getElementById('apiKey'),
+            aiProvider: document.getElementById('aiProvider'),
             categoryTabs: document.getElementById('categoryTabs'),
             worksheetTypeGrid: document.getElementById('worksheetTypeGrid'),
             gradeLevel: document.getElementById('gradeLevel'),
@@ -2399,7 +2408,7 @@ Return ONLY valid JSON, no markdown.`
         }
 
         // ================================================
-        // GEMINI API
+        // AI PROVIDERS (Gemini + OpenRouter + OpenAI + Qwen + Groq + Anthropic)
         // ================================================
         async function callGemini(prompt) {
             const apiKey = DOM.apiKey.value.trim();
@@ -2431,6 +2440,139 @@ Return ONLY valid JSON, no markdown.`
             return data.candidates[0].content.parts[0].text;
         }
 
+        // OpenRouter (example wrapper)
+        async function callOpenRouter(prompt) {
+            const key = DOM.apiKey.value.trim();
+            if (!key) {
+                showToast('Please enter your OpenRouter API Key', 'error');
+                throw new Error('No API key');
+            }
+            const body = {
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 2000
+            };
+            const res = await fetch('https://api.openrouter.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'OpenRouter API error');
+            }
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content || data.choices?.[0]?.text || JSON.stringify(data);
+        }
+
+        // OpenAI wrapper (chat completion)
+        async function callOpenAI(prompt) {
+            const key = DOM.apiKey.value.trim();
+            if (!key) {
+                showToast('Please enter your OpenAI API Key', 'error');
+                throw new Error('No API key');
+            }
+            const body = {
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 2000
+            };
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error?.message || 'OpenAI API error');
+            }
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content || JSON.stringify(data);
+        }
+
+        // Qwen (Alibaba) wrapper (example)
+        async function callQwen(prompt) {
+            const key = DOM.apiKey.value.trim();
+            if (!key) {
+                showToast('Please enter your Qwen API Key', 'error');
+                throw new Error('No API key');
+            }
+            const res = await fetch('https://api.qwen.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                body: JSON.stringify({ model: 'qwen-v1', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Qwen API error');
+            }
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content || data.choices?.[0]?.text || JSON.stringify(data);
+        }
+
+        // Groq wrapper (example)
+        async function callGroq(prompt) {
+            const key = DOM.apiKey.value.trim();
+            if (!key) {
+                showToast('Please enter your Groq API Key', 'error');
+                throw new Error('No API key');
+            }
+            const res = await fetch('https://api.groq.ai/v1/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                body: JSON.stringify({ model: 'groq-llama2-mini', prompt: prompt, max_tokens: 2000, temperature: 0.7 })
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Groq API error');
+            }
+            const data = await res.json();
+            return data.choices?.[0]?.text || JSON.stringify(data);
+        }
+
+        // Anthropic (Claude-like) wrapper (example)
+        async function callAnthropic(prompt) {
+            const key = DOM.apiKey.value.trim();
+            if (!key) {
+                showToast('Please enter your Anthropic API Key', 'error');
+                throw new Error('No API key');
+            }
+            // Anthropic Claude-instruct style
+            const res = await fetch('https://api.anthropic.com/v1/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': key },
+                body: JSON.stringify({ model: 'claude-2', prompt: prompt, max_tokens: 2000, temperature: 0.7 })
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Anthropic API error');
+            }
+            const data = await res.json();
+            return data.completion || data.choices?.[0]?.text || JSON.stringify(data);
+        }
+
+        // Router that selects provider based on DOM.aiProvider.value
+        async function callAI(prompt) {
+            const provider = (DOM.aiProvider && DOM.aiProvider.value) ? DOM.aiProvider.value : 'gemini';
+            switch (provider) {
+                case 'openrouter':
+                    return await callOpenRouter(prompt);
+                case 'openai':
+                    return await callOpenAI(prompt);
+                case 'qwen':
+                    return await callQwen(prompt);
+                case 'groq':
+                    return await callGroq(prompt);
+                case 'anthropic':
+                    return await callAnthropic(prompt);
+                case 'gemini':
+                default:
+                    return await callGemini(prompt);
+            }
+        }
+
         // ================================================
         // GENERATE WORKSHEETS
         // ================================================
@@ -2442,7 +2584,8 @@ Return ONLY valid JSON, no markdown.`
             const type = APP.selectedType;
             const typeInfo = getTypeInfo(type);
 
-            showLoading(`Generating ${count} ${typeInfo.name} worksheets...`, 'Gemini AI is working');
+            const providerLabel = (DOM.aiProvider && DOM.aiProvider.options[DOM.aiProvider.selectedIndex]) ? DOM.aiProvider.options[DOM.aiProvider.selectedIndex].text : 'AI';
+            showLoading(`Generating ${count} ${typeInfo.name} worksheets...`, `${providerLabel} is working`);
             DOM.progressBar.style.display = 'block';
             DOM.progressFill.style.width = '0%';
 
@@ -2450,7 +2593,7 @@ Return ONLY valid JSON, no markdown.`
                 const prompt = getPrompt(type, grade, diff, count, theme);
                 DOM.progressFill.style.width = '30%';
 
-                const response = await callGemini(prompt);
+                const response = await callAI(prompt);
                 DOM.progressFill.style.width = '70%';
 
                 let jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -3694,7 +3837,7 @@ Generate JSON with these fields:
 IMPORTANT: Title must follow real TPT top-seller patterns. Description must be comprehensive and keyword-rich but natural-sounding.
 Return ONLY valid JSON, no markdown.`;
 
-                const response = await callGemini(prompt);
+                const response = await callAI(prompt);
                 let jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
                 const seoData = JSON.parse(jsonStr);
                 APP.seoData = seoData;
@@ -4038,22 +4181,44 @@ Return ONLY valid JSON, no markdown.`;
                 for (let i = 0; i < pages.length; i++) {
                     DOM.loadingSub.textContent = `Rendering page ${i + 1} of ${pages.length}...`;
 
-                    const canvas = await html2canvas(pages[i], {
+                    // Ensure the page is visible and fully rendered by rendering a cloned copy in the document
+                    const pageEl = pages[i];
+                    const clone = pageEl.cloneNode(true);
+                    // Make clone visible and non-intrusive
+                    clone.style.position = 'fixed';
+                    clone.style.left = '10px';
+                    clone.style.top = '10px';
+                    clone.style.zIndex = '99999';
+                    clone.style.transform = 'scale(1)';
+                    clone.style.background = 'white';
+                    clone.style.boxShadow = 'none';
+                    clone.style.margin = '0';
+                    clone.style.pointerEvents = 'none';
+                    clone.style.width = pageEl.offsetWidth + 'px';
+                    clone.style.height = pageEl.offsetHeight + 'px';
+                    document.body.appendChild(clone);
+
+                    // Allow a short time for fonts/images to render in the cloned node
+                    await new Promise(r => setTimeout(r, 150));
+
+                    const canvas = await html2canvas(clone, {
                         scale: 2,
                         useCORS: true,
                         logging: false,
                         backgroundColor: '#ffffff',
-                        width: pages[i].offsetWidth,
-                        height: pages[i].offsetHeight,
-                        windowWidth: pages[i].offsetWidth,
-                        windowHeight: pages[i].offsetHeight
+                        width: pageEl.offsetWidth,
+                        height: pageEl.offsetHeight
                     });
+
+                    // Remove the clone after rendering
+                    try { document.body.removeChild(clone); } catch (e) { /* ignore */ }
 
                     const imgData = canvas.toDataURL('image/jpeg', 0.92);
                     if (!isFirst) pdf.addPage();
                     pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
                     isFirst = false;
 
+                    // Free canvas memory
                     canvas.width = 0;
                     canvas.height = 0;
 
