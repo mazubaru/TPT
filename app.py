@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. ซ่อนเมนูและ footer เริ่มต้นของ Streamlit (เพื่อให้เว็บดูสะอาดตา)
+# 2. ซ่อนเมนูและ footer เริ่มต้นของ Streamlit
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -21,7 +21,6 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # 3. โหลดไฟล์ HTML
-# ใช้ os.path เพื่อให้หาไฟล์เจอไม่ว่าจะรันจากโฟลเดอร์ไหน
 current_dir = os.path.dirname(os.path.abspath(__file__))
 html_file_path = os.path.join(current_dir, 'index.html')
 
@@ -30,7 +29,6 @@ try:
         html_code = f.read()
     
     # 4. แสดงผล HTML ใน Streamlit
-    # height=1200 คือความสูงของ iframe, scrolling=True เพื่อให้เลื่อนหน้าได้
     components.html(html_code, height=1200, scrolling=True)
 
 except FileNotFoundError:
