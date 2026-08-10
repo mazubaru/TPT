@@ -1,0 +1,4317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GridMind Worksheet Studio — TPT Worksheet Designer</title>
+    <meta name="description"
+        content="Professional worksheet designer for Teachers Pay Teachers. Create, export, and sell beautiful educational worksheets.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Patrick+Hand&family=Comic+Neue:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+        /* ========================================
+           DESIGN SYSTEM — CSS VARIABLES
+           ======================================== */
+        :root {
+            --primary: #7C3AED;
+            --primary-dark: #6D28D9;
+            --primary-light: #A78BFA;
+            --primary-glow: rgba(124, 58, 237, 0.15);
+            --secondary: #EC4899;
+            --secondary-light: #F472B6;
+            --accent: #F59E0B;
+            --accent-light: #FCD34D;
+            --success: #10B981;
+            --success-light: #34D399;
+            --danger: #EF4444;
+            --info: #3B82F6;
+            --warning: #F97316;
+
+            --bg-primary: #0F0B1A;
+            --bg-secondary: #1A1230;
+            --bg-tertiary: #241B3A;
+            --bg-card: rgba(30, 22, 54, 0.85);
+            --bg-card-hover: rgba(40, 30, 70, 0.9);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --bg-glass-strong: rgba(255, 255, 255, 0.1);
+
+            --text-primary: #F3F0FF;
+            --text-secondary: #B4A9D6;
+            --text-muted: #7C6FA0;
+            --text-accent: #DDD6FE;
+
+            --border: rgba(255, 255, 255, 0.08);
+            --border-light: rgba(255, 255, 255, 0.12);
+            --border-active: rgba(124, 58, 237, 0.5);
+
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+
+            --font-display: 'Fredoka', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-worksheet: 'Comic Neue', cursive;
+            --font-handwriting: 'Patrick Hand', cursive;
+
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s ease;
+            --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* ========================================
+           RESET & BASE
+           ======================================== */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 30%, rgba(124, 58, 237, 0.08), transparent),
+                radial-gradient(ellipse 60% 50% at 80% 70%, rgba(236, 72, 153, 0.06), transparent),
+                radial-gradient(ellipse 40% 40% at 50% 50%, rgba(245, 158, 11, 0.04), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ========================================
+           SCROLLBAR
+           ======================================== */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* ========================================
+           HEADER
+           ======================================== */
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 11, 26, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .app-logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .app-logo-text {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--text-primary), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .api-key-wrapper {
+            position: relative;
+        }
+
+        .api-key-input {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px 14px 8px 36px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 13px;
+            width: 260px;
+            transition: all var(--transition-normal);
+        }
+
+        .api-key-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .api-key-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        /* ========================================
+           MAIN LAYOUT
+           ======================================== */
+        .app-layout {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 0;
+            min-height: calc(100vh - 64px);
+        }
+
+        /* ========================================
+           SIDEBAR
+           ======================================== */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            height: calc(100vh - 64px);
+            position: sticky;
+            top: 64px;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-label {
+            font-family: var(--font-display);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        /* Category Tabs */
+        .category-tabs {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .category-tab {
+            padding: 6px 12px;
+            border: none;
+            background: var(--bg-glass);
+            border-radius: 20px;
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            white-space: nowrap;
+        }
+
+        .category-tab:hover {
+            background: var(--bg-glass-strong);
+            color: var(--text-primary);
+        }
+
+        .category-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, 0.3);
+        }
+
+        /* Worksheet Type Grid */
+        .worksheet-type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .worksheet-type-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px 10px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .worksheet-type-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .worksheet-type-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-light);
+            transform: translateY(-1px);
+        }
+
+        .worksheet-type-card:hover::before {
+            opacity: 1;
+        }
+
+        .worksheet-type-card.active {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary), var(--shadow-glow);
+        }
+
+        .worksheet-type-card.active::before {
+            opacity: 1;
+        }
+
+        .wt-emoji {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .wt-name {
+            font-family: var(--font-display);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .worksheet-type-card.active .wt-name {
+            color: var(--text-primary);
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        .form-select,
+        .form-input {
+            width: 100%;
+            padding: 9px 12px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 13px;
+            transition: all var(--transition-normal);
+            appearance: none;
+        }
+
+        .form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C6FA0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        .form-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .form-select:focus,
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .form-checkbox input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .form-checkbox label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-glass-strong);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+
+        /* ========================================
+           MAIN CONTENT AREA
+           ======================================== */
+        .main-content {
+            padding: 24px;
+            overflow-y: auto;
+            height: calc(100vh - 64px);
+        }
+
+        /* Tabs */
+        .main-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg-glass);
+            padding: 4px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .main-tab {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-md);
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .main-tab:hover {
+            color: var(--text-secondary);
+            background: var(--bg-glass);
+        }
+
+        .main-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Tab Content */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Content Cards */
+        .content-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .content-card-title {
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .content-card-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* ========================================
+           WORKSHEET PREVIEW
+           ======================================== */
+        .preview-wrapper {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            min-height: 600px;
+            border: 1px solid var(--border);
+        }
+
+        .preview-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 500px;
+            text-align: center;
+        }
+
+        .preview-empty-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            opacity: 0.7;
+        }
+
+        .preview-empty h3 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .preview-empty p {
+            color: var(--text-muted);
+            font-size: 14px;
+            max-width: 360px;
+        }
+
+        /* Worksheet Page (Print-ready styling) */
+        .ws-page {
+            background: white;
+            color: #1F2937;
+            border-radius: var(--radius-sm);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+            width: 680px;
+            height: 960px;
+            /* default A4-like, overridden in JS */
+            margin-left: auto;
+            margin-right: auto;
+            font-family: var(--font-worksheet);
+        }
+
+        .ws-page-inner {
+            padding: 30px 36px 24px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .ws-page-inner .ws-content {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Worksheet decorative top border */
+        .ws-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+        }
+
+        .ws-page.theme-purple::before {
+            background: #7C3AED;
+        }
+
+        .ws-page.theme-blue::before {
+            background: #3B82F6;
+        }
+
+        .ws-page.theme-green::before {
+            background: #10B981;
+        }
+
+        .ws-page.theme-orange::before {
+            background: #F97316;
+        }
+
+        .ws-page.theme-pink::before {
+            background: #EC4899;
+        }
+
+        .ws-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 2.5px dashed #DDD6FE;
+        }
+
+        .ws-title-area {
+            flex: 1;
+        }
+
+        .ws-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 700;
+            color: #7C3AED;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .ws-subtitle {
+            font-size: 12px;
+            color: #9CA3AF;
+            font-family: var(--font-body);
+        }
+
+        .ws-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-end;
+            font-size: 12px;
+            color: #6B7280;
+            min-width: 180px;
+        }
+
+        .ws-meta-field {
+            background: #F3F4F6;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-family: var(--font-body);
+            white-space: nowrap;
+        }
+
+        .ws-directions {
+            background: #FEF3C7;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+            border-left: 4px solid #F59E0B;
+            color: #78350F;
+        }
+
+        .ws-directions strong {
+            color: #92400E;
+        }
+
+        .ws-content {
+            min-height: 300px;
+        }
+
+        .ws-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px dashed #E5E7EB;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #9CA3AF;
+            font-family: var(--font-body);
+            flex-shrink: 0;
+        }
+
+        /* Low-Ink B&W Mode */
+        .ws-page.low-ink {
+            background: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+        }
+
+        .ws-page.low-ink::before {
+            display: none !important;
+        }
+
+        .ws-page.low-ink .ws-header {
+            border-bottom: 2px solid #000 !important;
+        }
+
+        .ws-page.low-ink .ws-title {
+            color: black !important;
+        }
+
+        .ws-page.low-ink .ws-subtitle {
+            color: #444 !important;
+        }
+
+        .ws-page.low-ink .ws-meta-field {
+            background: white !important;
+            border: 1px solid #000 !important;
+            color: black !important;
+        }
+
+        .ws-page.low-ink .ws-directions {
+            background: #F9FAFB !important;
+            border-left: 4px solid #000 !important;
+            color: black !important;
+        }
+
+        .ws-page.low-ink .ws-directions strong {
+            color: black !important;
+        }
+
+        .ws-page.low-ink .math-problem {
+            background: white !important;
+            border: 1px solid #000 !important;
+        }
+
+        .ws-page.low-ink .sight-word-main,
+        .ws-page.low-ink .phonics-focus,
+        .ws-page.low-ink .word-bank-item,
+        .ws-page.low-ink .puzzle-cell.given,
+        .ws-page.low-ink .sw-activity,
+        .ws-page.low-ink .wordsearch-cell {
+            background: white !important;
+            color: black !important;
+            border: 1px solid #000 !important;
+        }
+
+        .ws-page.low-ink .operator {
+            color: black !important;
+        }
+
+        .ws-page.low-ink .math-answer-blank {
+            border-bottom-color: black !important;
+        }
+
+        /* ========================================
+           WORKSHEET-SPECIFIC STYLES
+           ======================================== */
+
+        /* Math Problems Grid */
+        .math-problems {
+            display: grid;
+            gap: 16px;
+        }
+
+        .math-problems.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .math-problems.cols-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .math-problems.cols-4 {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+
+        .math-problem {
+            background: #FAFAFA;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 18px 14px 14px;
+            text-align: center;
+            font-family: var(--font-display);
+            position: relative;
+        }
+
+        .math-problem-num {
+            position: absolute;
+            top: 6px;
+            left: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6B7280;
+        }
+
+        .math-problem-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            font-size: 22px;
+            font-weight: 600;
+            position: relative;
+            padding: 8px 16px;
+        }
+
+        .math-problem-vertical .operand {
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .math-problem-vertical .operator-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: flex-end;
+        }
+
+        .math-problem-vertical .operator {
+            color: #7C3AED;
+            font-size: 18px;
+        }
+
+        .math-problem-vertical .answer-line {
+            width: 100%;
+            height: 2px;
+            background: #1F2937;
+            margin-top: 4px;
+        }
+
+        .math-problem-horizontal {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+        }
+
+        .math-answer-blank {
+            display: inline-block;
+            width: 40px;
+            border-bottom: 2px solid #7C3AED;
+            height: 28px;
+        }
+
+        /* Writing Lines */
+        .writing-lines {
+            margin: 8px 0;
+        }
+
+        .writing-line-group {
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .writing-line-group .guide-letter {
+            font-family: var(--font-display);
+            font-size: 32px;
+            color: #DDD6FE;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .writing-line {
+            height: 40px;
+            border-bottom: 1px solid #E5E7EB;
+            position: relative;
+        }
+
+        .writing-line.dashed {
+            border-bottom-style: dashed;
+            border-bottom-color: #D1D5DB;
+        }
+
+        .writing-line.mid {
+            border-bottom: 1px dashed #E5E7EB;
+            height: 20px;
+        }
+
+        /* Tracing */
+        .tracing-letter {
+            font-family: var(--font-display);
+            font-size: 64px;
+            color: #E5E7EB;
+            text-align: center;
+            letter-spacing: 24px;
+            line-height: 1.5;
+        }
+
+        .tracing-letter span {
+            display: inline-block;
+            position: relative;
+        }
+
+        .tracing-letter span.solid {
+            color: #7C3AED;
+        }
+
+        /* Sudoku / Grid Games */
+        .puzzle-grid {
+            display: grid;
+            gap: 0;
+            margin: 0 auto;
+            border: 3px solid #1F2937;
+        }
+
+        .puzzle-cell {
+            aspect-ratio: 1;
+            border: 1px solid #D1D5DB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            background: white;
+        }
+
+        .puzzle-cell.given {
+            background: #EDE9FE;
+            color: #7C3AED;
+        }
+
+        .puzzle-cell.thick-right {
+            border-right: 3px solid #1F2937;
+        }
+
+        .puzzle-cell.thick-bottom {
+            border-bottom: 3px solid #1F2937;
+        }
+
+        /* Word Search */
+        .wordsearch-grid {
+            display: grid;
+            gap: 2px;
+            margin: 0 auto 16px;
+        }
+
+        .wordsearch-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 600;
+            background: #F9FAFB;
+            border-radius: 3px;
+        }
+
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .word-bank-item {
+            background: #EDE9FE;
+            border: 1px solid #DDD6FE;
+            padding: 5px 14px;
+            border-radius: 16px;
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 500;
+            color: #7C3AED;
+        }
+
+        /* Sight Words */
+        .sight-word-box {
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .sight-word-main {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 700;
+            color: #7C3AED;
+            text-align: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #EDE9FE;
+            border-radius: 8px;
+        }
+
+        .sight-word-activities {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .sw-activity {
+            background: #F9FAFB;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .sw-activity-title {
+            font-family: var(--font-display);
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B7280;
+            margin-bottom: 6px;
+        }
+
+        /* Phonics */
+        .phonics-card {
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .phonics-focus {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            text-align: center;
+            color: #EC4899;
+            margin-bottom: 12px;
+        }
+
+        /* Fill-in-blank sentences */
+        .sentence-box {
+            padding: 10px 16px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 15px;
+            line-height: 2;
+        }
+
+        .sentence-blank {
+            display: inline-block;
+            width: 80px;
+            border-bottom: 2px solid #7C3AED;
+        }
+
+        /* Matching */
+        .matching-activity {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .matching-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .matching-item {
+            background: #F3F4F6;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: var(--font-display);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .matching-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #7C3AED;
+        }
+
+        .matching-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        /* Number tracing */
+        .number-trace-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+
+        .number-trace-box {
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .number-trace-big {
+            font-family: var(--font-display);
+            font-size: 48px;
+            font-weight: 700;
+            color: #DDD6FE;
+        }
+
+        .number-trace-big.solid {
+            color: #7C3AED;
+        }
+
+        .number-trace-objects {
+            font-size: 18px;
+            letter-spacing: 4px;
+            margin-top: 4px;
+        }
+
+        /* Clock */
+        .clock-container {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clock-svg {
+            width: 120px;
+            height: 120px;
+        }
+
+        /* ========================================
+           SEO SECTION
+           ======================================== */
+        .seo-field {
+            margin-bottom: 16px;
+        }
+
+        .seo-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .seo-input,
+        .seo-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 14px;
+            transition: all var(--transition-normal);
+        }
+
+        .seo-textarea {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.6;
+        }
+
+        .seo-input:focus,
+        .seo-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .seo-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .seo-tag {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(236, 72, 153, 0.2));
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--primary-light);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+
+        /* ========================================
+           NICHE ANALYSIS
+           ======================================== */
+        .niche-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        .niche-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            transition: all var(--transition-normal);
+        }
+
+        .niche-card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+        }
+
+        .niche-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .niche-name {
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .niche-badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .niche-badge.hot {
+            background: rgba(239, 68, 68, 0.2);
+            color: #F87171;
+        }
+
+        .niche-badge.warm {
+            background: rgba(245, 158, 11, 0.2);
+            color: #FBBF24;
+        }
+
+        .niche-badge.cool {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60A5FA;
+        }
+
+        .niche-badge.gold {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+        }
+
+        .niche-meter {
+            height: 6px;
+            background: var(--bg-glass-strong);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .niche-meter-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+
+        .niche-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ========================================
+           THUMBNAILS
+           ======================================== */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .thumbnail-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .thumbnail-canvas-wrapper {
+            aspect-ratio: 1;
+            background: #1A1230;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thumbnail-canvas-wrapper canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .thumbnail-info {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .thumbnail-info h4 {
+            font-family: var(--font-display);
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .thumbnail-info p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ========================================
+           EXPORT
+           ======================================== */
+        .export-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .export-checklist {
+            background: var(--bg-glass);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .export-checklist h4 {
+            font-family: var(--font-display);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .export-checklist li {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            list-style: none;
+        }
+
+        /* ========================================
+           LOADING OVERLAY
+           ======================================== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 40px 56px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .loading-spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-family: var(--font-display);
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .loading-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-glass);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* ========================================
+           TOAST NOTIFICATIONS
+           ======================================== */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            font-size: 13px;
+            box-shadow: var(--shadow-lg);
+            animation: toastIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .toast.success {
+            border-left: 3px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 3px solid var(--danger);
+        }
+
+        .toast.info {
+            border-left: 3px solid var(--info);
+        }
+
+        @keyframes toastIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* ========================================
+           MODAL
+           ======================================== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-family: var(--font-display);
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        /* ========================================
+           RESPONSIVE
+           ======================================== */
+        @media (max-width: 1100px) {
+            .app-layout {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: relative;
+                top: 0;
+                height: auto;
+                max-height: 50vh;
+            }
+
+            .main-content {
+                height: auto;
+            }
+
+            .niche-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .app-header {
+                padding: 0 16px;
+            }
+
+            .api-key-input {
+                width: 160px;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+
+            .niche-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="app-header">
+                <!-- ต่อส่วนที่มีอยู่ของ header เป็น -->
+        <div class="app-logo">
+            <span class="app-logo-text">GridMind Worksheet Studio</span>
+        </div>
+
+<!-- เพิ่มเมนูเลือก Provider API -->
+                <div class="api-select-wrapper">
+                <select id="apiProvider" style="width: 130px; margin: 4px 0 0 8px;">
+                    <option value="gemini">Gemini</option>
+                    <option value="groq">GROQ</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="deepseek">DeepSeek</option>
+                </select>
+
+                <input type="password" class="api-key-input" id="apiKey" style="margin-left: 8px;" 
+                 placeholder="Enter API Key (required)">
+  
+                <button class="btn btn-primary btn-sm" id="apiConnectBtn" style="margin-left: 8px;">Connect</button>
+            </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN LAYOUT -->
+    <div class="app-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+
+            <!-- Category Selection -->
+            <div class="sidebar-section">
+                <div class="section-label">Category</div>
+                <div class="category-tabs" id="categoryTabs">
+                    <button class="category-tab active" data-category="math">📐 Math</button>
+                    <button class="category-tab" data-category="ela">📖 ELA</button>
+                    <button class="category-tab" data-category="puzzle">🧩 Puzzles</button>
+                    <button class="category-tab" data-category="early">🌈 Early</button>
+                    <button class="category-tab" data-category="other">🌍 Other</button>
+                </div>
+            </div>
+
+            <!-- Worksheet Types -->
+            <div class="sidebar-section">
+                <div class="section-label">Worksheet Type</div>
+                <div class="worksheet-type-grid" id="worksheetTypeGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="sidebar-section">
+                <div class="section-label">Settings</div>
+
+                <div class="form-group">
+                    <label class="form-label">Grade Level</label>
+                    <select class="form-select" id="gradeLevel">
+                        <option value="PreK">Pre-K</option>
+                        <option value="K">Kindergarten</option>
+                        <option value="1" selected>1st Grade</option>
+                        <option value="2">2nd Grade</option>
+                        <option value="3">3rd Grade</option>
+                        <option value="4">4th Grade</option>
+                        <option value="5">5th Grade</option>
+                        <option value="6">6th Grade</option>
+                        <option value="7">7th Grade</option>
+                        <option value="8">8th Grade</option>
+                        <option value="9">9th Grade</option>
+                        <option value="10">10th Grade</option>
+                        <option value="11">11th Grade</option>
+                        <option value="12">12th Grade</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Difficulty</label>
+                        <select class="form-select" id="difficulty">
+                            <option value="beginner">Beginner</option>
+                            <option value="easy" selected>Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pages</label>
+                        <select class="form-select" id="pageCount">
+                            <option value="1">1 page</option>
+                            <option value="3">3 pages</option>
+                            <option value="5" selected>5 pages</option>
+                            <option value="10">10 pages</option>
+                            <option value="15">15 pages</option>
+                            <option value="20">20 pages</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Paper Size</label>
+                        <select class="form-select" id="paperSize">
+                            <option value="a4" selected>A4 (210×297mm)</option>
+                            <option value="letter">US Letter (8.5×11in)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Theme</label>
+                        <select class="form-select" id="worksheetTheme">
+                            <option value="purple" selected>Purple</option>
+                            <option value="blue">Blue</option>
+                            <option value="green">Green</option>
+                            <option value="orange">Orange</option>
+                            <option value="pink">Pink</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Store Name</label>
+                    <input type="text" class="form-input" id="storeName" value="MathFun Academy"
+                        placeholder="Your TPT store name">
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="includeAnswerKey" checked>
+                        <label for="includeAnswerKey">Include Answer Key</label>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="includeCover" checked>
+                        <label for="includeCover">Include Cover Page</label>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="lowInk">
+                        <label for="lowInk">Low-Ink B&W Mode</label>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="generateBtn" style="margin-top: 16px;">
+                    🚀 Generate Worksheets
+                </button>
+
+                <div class="progress-bar" id="progressBar" style="display:none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+
+            <!-- Tab Bar -->
+            <div class="main-tabs">
+                <button class="main-tab active" data-tab="preview">📄 Preview</button>
+                <button class="main-tab" data-tab="seo">🔍 SEO Listing</button>
+                <button class="main-tab" data-tab="niche">📊 Niche Analysis</button>
+                <button class="main-tab" data-tab="thumbnails">🖼️ Thumbnails</button>
+                <button class="main-tab" data-tab="export">📦 Export</button>
+            </div>
+
+            <!-- PREVIEW TAB -->
+            <div class="tab-panel active" id="tab-preview">
+                <div class="preview-wrapper" id="previewContainer">
+                    <div class="preview-empty">
+                        <div class="preview-empty-icon">📝</div>
+                        <h3>Ready to Create!</h3>
+                        <p>Choose a worksheet type, configure settings, then click <strong>"Generate
+                                Worksheets"</strong> to begin.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEO TAB -->
+            <div class="tab-panel" id="tab-seo">
+                <div class="content-card">
+                    <div class="content-card-title">🔍 TPT SEO Listing Generator</div>
+                    <div class="content-card-subtitle">Generate optimized title, description, keywords, and pricing for
+                        your TPT product listing.</div>
+
+                    <button class="btn btn-secondary" id="generateSeoBtn" style="margin-bottom: 20px;">
+                        ✨ Generate SEO Listing
+                    </button>
+
+                    <div id="seoContent" style="display:none;">
+                        <div class="seo-field">
+                            <label>Product Title</label>
+                            <input type="text" class="seo-input" id="seoTitle" placeholder="Title will appear here...">
+                        </div>
+                        <div class="seo-field">
+                            <label>Product Description</label>
+                            <textarea class="seo-textarea" id="seoDescription"
+                                placeholder="Description will appear here..." style="min-height:200px;"></textarea>
+                        </div>
+                        <div class="seo-field">
+                            <label>Primary Keywords</label>
+                            <div class="seo-tags" id="seoKeywords"></div>
+                        </div>
+                        <div class="form-row" style="margin-top:12px;">
+                            <div class="seo-field">
+                                <label>Grade Levels</label>
+                                <input type="text" class="seo-input" id="seoGrades">
+                            </div>
+                            <div class="seo-field">
+                                <label>Subject Area</label>
+                                <input type="text" class="seo-input" id="seoSubject">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="seo-field">
+                                <label>Suggested Price (USD)</label>
+                                <input type="text" class="seo-input" id="seoPrice">
+                            </div>
+                            <div class="seo-field">
+                                <label>Resource Type</label>
+                                <input type="text" class="seo-input" id="seoResourceType">
+                            </div>
+                        </div>
+                        <div class="seo-field">
+                            <label>Standards Alignment (CCSS)</label>
+                            <textarea class="seo-textarea" id="seoStandards" style="min-height:80px;"
+                                placeholder="CCSS.MATH.CONTENT..."></textarea>
+                        </div>
+                        <div class="seo-field">
+                            <label>Tags</label>
+                            <div class="seo-tags" id="seoTagsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NICHE ANALYSIS TAB -->
+            <div class="tab-panel" id="tab-niche">
+                <div class="content-card">
+                    <div class="content-card-title">📊 Niche Analysis Dashboard</div>
+                    <div class="content-card-subtitle">Discover profitable worksheet niches and avoid oversaturated
+                        markets.</div>
+                    <div class="niche-grid" id="nicheGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- THUMBNAILS TAB -->
+            <div class="tab-panel" id="tab-thumbnails">
+                <div class="content-card">
+                    <div class="content-card-title">🖼️ Product Thumbnails</div>
+                    <div class="content-card-subtitle">Generate 4 professional thumbnails at 1500×1500px for your TPT
+                        listing.</div>
+
+                    <button class="btn btn-secondary" id="generateThumbnailsBtn" style="margin-bottom: 20px;">
+                        🎨 Generate Thumbnails
+                    </button>
+
+                    <div class="thumbnail-grid" id="thumbnailGrid">
+                        <div class="preview-empty" style="grid-column:1/-1; min-height:200px;">
+                            <div class="preview-empty-icon">🖼️</div>
+                            <h3>Generate worksheets first</h3>
+                            <p>Thumbnails use your worksheet data to create professional product images.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXPORT TAB -->
+            <div class="tab-panel" id="tab-export">
+                <div class="content-card">
+                    <div class="content-card-title">📦 Export Center</div>
+                    <div class="content-card-subtitle">Export your worksheets as PDF, images, or a complete TPT upload
+                        package.</div>
+
+                    <div class="export-grid">
+                        <button class="btn btn-success" id="exportPdfBtn">📄 Export Worksheet PDF</button>
+                        <button class="btn btn-success" id="exportZipBtn">📦 Export ZIP Package</button>
+                        <button class="btn btn-secondary" id="exportAnswerKeyBtn">🔑 Answer Key Only</button>
+                        <button class="btn btn-secondary" id="exportImagesBtn">🖼️ Export as Images</button>
+                    </div>
+
+                    <div class="export-checklist">
+                        <h4>📋 TPT Upload Checklist</h4>
+                        <ul>
+                            <li>✅ Worksheet PDF (US Letter / A4) — max 200MB</li>
+                            <li>✅ Answer Key PDF (separate file)</li>
+                            <li>✅ Cover Page + Table of Contents</li>
+                            <li>✅ Credits & Terms of Use page</li>
+                            <li>✅ Preview PDF (watermarked, max 5MB)</li>
+                            <li>✅ Thumbnail images (1500×1500px, max 4MB each, up to 4)</li>
+                            <li>✅ Listing metadata (title, description, tags)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Generating...</div>
+            <div class="loading-sub" id="loadingSub">Please wait</div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ================================================
+        // APP STATE
+        // ================================================
+        const APP = {
+            selectedCategory: 'math',
+            selectedType: 'addition',
+            worksheets: [],
+            seoData: null,
+            thumbnails: [],
+            apiKey: ''
+        };
+
+        // ================================================
+        // WORKSHEET TYPE DATABASE
+        // ================================================
+        const CATEGORIES = {
+            math: {
+                name: 'Math',
+                emoji: '📐',
+                types: {
+                    addition: { name: 'Addition & Subtraction', emoji: '➕' },
+                    multiplication: { name: 'Multiplication & Division', emoji: '✖️' },
+                    placeValue: { name: 'Place Value', emoji: '🔢' },
+                    fractions: { name: 'Fractions', emoji: '🥧' },
+                    money: { name: 'Money & Budget', emoji: '💰' },
+                    time: { name: 'Time & Clock', emoji: '🕐' },
+                    measurement: { name: 'Measurement', emoji: '📏' },
+                    geometry: { name: 'Geometry & Shapes', emoji: '🔷' },
+                    factFluency: { name: 'Math Fact Fluency', emoji: '⚡' },
+                    wordProblems: { name: 'Word Problems', emoji: '📝' }
+                }
+            },
+            ela: {
+                name: 'ELA / Reading',
+                emoji: '📖',
+                types: {
+                    sightWords: { name: 'Sight Words', emoji: '👀' },
+                    phonics: { name: 'Phonics & Digraphs', emoji: '🔤' },
+                    readingComp: { name: 'Reading Comprehension', emoji: '📚' },
+                    handwriting: { name: 'Handwriting Practice', emoji: '✍️' },
+                    spelling: { name: 'Spelling Activities', emoji: '🅰️' },
+                    grammar: { name: 'Grammar & Parts of Speech', emoji: '📝' },
+                    vocabulary: { name: 'Vocabulary Building', emoji: '📖' }
+                }
+            },
+            puzzle: {
+                name: 'Puzzles & Logic',
+                emoji: '🧩',
+                types: {
+                    sudoku: { name: 'Sudoku', emoji: '🔢' },
+                    wordSearch: { name: 'Word Search', emoji: '🔍' },
+                    crossword: { name: 'Crossword Puzzle', emoji: '✏️' },
+                    cryptogram: { name: 'Secret Codes', emoji: '🕵️' },
+                    mazes: { name: 'Math Mazes', emoji: '🌀' },
+                    logicGrid: { name: 'Logic Puzzles', emoji: '🧠' }
+                }
+            },
+            early: {
+                name: 'Early Learning',
+                emoji: '🌈',
+                types: {
+                    alphabetTrace: { name: 'Alphabet Tracing', emoji: '🔡' },
+                    numberTrace: { name: 'Number Tracing', emoji: '🔢' },
+                    colorShape: { name: 'Colors & Shapes', emoji: '🟢' },
+                    cutPaste: { name: 'Cut & Paste', emoji: '✂️' },
+                    patterns: { name: 'Pattern Activities', emoji: '🔶' }
+                }
+            },
+            other: {
+                name: 'Other',
+                emoji: '🌍',
+                types: {
+                    science: { name: 'Science Worksheets', emoji: '🔬' },
+                    socialStudies: { name: 'Social Studies', emoji: '🗺️' },
+                    lifeSkills: { name: 'Life Skills', emoji: '🏠' },
+                    morningWork: { name: 'Morning Work', emoji: '☀️' },
+                    noPrep: { name: 'No-Prep Bundle', emoji: '📋' }
+                }
+            }
+        };
+
+        // ================================================
+        // NICHE ANALYSIS DATA
+        // ================================================
+        const NICHE_DATA = [
+            { name: 'Morning Work (1st-3rd)', category: 'other', saturation: 45, demand: 95, opportunity: 88, price: '$4.50-$8.00', badge: 'gold', tip: 'High demand, moderate competition. Focus on spiral review format.' },
+            { name: 'Sight Words (K-1)', category: 'ela', saturation: 85, demand: 98, opportunity: 60, price: '$3.50-$12.00', badge: 'hot', tip: 'Very competitive but huge demand. Quality and variety win.' },
+            { name: 'Phonics Digraphs (K-2)', category: 'ela', saturation: 65, demand: 92, opportunity: 78, price: '$3.00-$8.00', badge: 'gold', tip: 'Strong demand, especially sh, ch, th, wh packets.' },
+            { name: 'Life Skills / Special Ed', category: 'other', saturation: 25, demand: 75, opportunity: 92, price: '$3.50-$7.00', badge: 'gold', tip: 'Underserved niche. Budget, money, and daily living skills.' },
+            { name: 'Math Fact Fluency (1st-4th)', category: 'math', saturation: 60, demand: 88, opportunity: 72, price: '$2.50-$6.00', badge: 'warm', tip: 'Steady demand. Number search and timed drills perform well.' },
+            { name: 'Addition/Subtraction (K-2)', category: 'math', saturation: 75, demand: 95, opportunity: 65, price: '$2.00-$5.00', badge: 'warm', tip: 'Saturated but evergreen. Stand out with unique formats.' },
+            { name: 'Reading Comprehension (2nd-4th)', category: 'ela', saturation: 55, demand: 90, opportunity: 80, price: '$4.00-$10.00', badge: 'gold', tip: 'Decodable passages and themed packs sell very well.' },
+            { name: 'Logic Puzzles (3rd-6th)', category: 'puzzle', saturation: 30, demand: 65, opportunity: 82, price: '$3.00-$5.50', badge: 'gold', tip: 'Low competition. Critical thinking is a growing niche.' },
+            { name: 'Alphabet Tracing (PreK-K)', category: 'early', saturation: 70, demand: 85, opportunity: 58, price: '$2.50-$6.00', badge: 'warm', tip: 'Competitive but parents buy a lot. Make it visually appealing.' },
+            { name: 'Money & Budget (K-3)', category: 'math', saturation: 40, demand: 80, opportunity: 85, price: '$3.00-$6.00', badge: 'gold', tip: 'Great opportunity. "Do you have enough money?" format is popular.' },
+            { name: 'Geometry & Shapes (K-3)', category: 'math', saturation: 35, demand: 70, opportunity: 80, price: '$2.50-$5.00', badge: 'cool', tip: 'Moderate demand with low competition. Visual worksheets do well.' },
+            { name: 'Handwriting Practice (K-2)', category: 'ela', saturation: 55, demand: 80, opportunity: 70, price: '$2.50-$5.00', badge: 'warm', tip: 'Consistent demand. Themed handwriting packs sell well.' },
+            { name: 'Sudoku / KenKen (2nd-6th)', category: 'puzzle', saturation: 20, demand: 55, opportunity: 78, price: '$2.00-$4.00', badge: 'cool', tip: 'Niche but loyal buyers. Bundle multiple difficulty levels.' },
+            { name: 'Grammar (2nd-5th)', category: 'ela', saturation: 50, demand: 75, opportunity: 68, price: '$3.00-$6.00', badge: 'warm', tip: 'Nouns, verbs, adjectives packs are popular.' },
+            { name: 'Fractions (3rd-5th)', category: 'math', saturation: 45, demand: 82, opportunity: 75, price: '$3.00-$6.50', badge: 'gold', tip: 'Visual fraction models and real-world contexts sell well.' },
+            { name: 'Science Worksheets (1st-5th)', category: 'other', saturation: 35, demand: 70, opportunity: 78, price: '$3.00-$7.00', badge: 'cool', tip: 'Life cycles, weather, and plants are top sellers.' },
+            { name: 'Word Search Themed (K-5)', category: 'puzzle', saturation: 50, demand: 70, opportunity: 65, price: '$2.00-$4.00', badge: 'warm', tip: 'Holiday and seasonal themes drive sales.' },
+            { name: 'No-Prep Math Bundle (K-3)', category: 'other', saturation: 55, demand: 90, opportunity: 76, price: '$6.00-$15.00', badge: 'gold', tip: 'Year-long bundles at higher price points are very profitable.' }
+        ];
+
+        // ================================================
+        // GEMINI API PROMPTS PER WORKSHEET TYPE
+        // ================================================
+        function getPrompt(type, grade, difficulty, count, theme) {
+            const prompts = {
+                // MATH
+                addition: `Generate ${count} unique Addition & Subtraction worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should have 12-20 problems depending on difficulty.
+Return JSON array: [{"id":1,"title":"Addition & Subtraction Practice #1","problems":[{"num1":5,"num2":3,"operation":"+","answer":8},...],"format":"vertical"}]
+For K-1: single digit, addition only. For 2-3: two digit with regrouping. For 4+: multi-digit mixed operations.
+Difficulty affects number ranges: beginner=1-10, easy=1-20, medium=1-100, hard=1-1000, advanced=multi-step.
+Return ONLY valid JSON, no markdown.`,
+
+                multiplication: `Generate ${count} unique Multiplication & Division worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should have 12-16 problems.
+Return JSON array: [{"id":1,"title":"Multiplication Practice #1","problems":[{"num1":6,"num2":7,"operation":"×","answer":42},...],"format":"vertical"}]
+For Grade 2-3: basic facts 1-12. For 4-5: multi-digit. For 6+: long division.
+Return ONLY valid JSON, no markdown.`,
+
+                placeValue: `Generate ${count} unique Place Value worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Place Value #1","exercises":[{"type":"expand","number":345,"expanded":"300 + 40 + 5"},{"type":"identify","number":672,"question":"What digit is in the tens place?","answer":"7"},{"type":"compare","num1":456,"num2":465,"answer":"<"}]}]
+For K-1: tens and ones. For 2-3: hundreds. For 4+: thousands and beyond.
+Return ONLY valid JSON, no markdown.`,
+
+                fractions: `Generate ${count} unique Fractions worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Fractions #1","problems":[{"type":"identify","numerator":1,"denominator":4,"visual":"circle"},{"type":"compare","frac1":"1/3","frac2":"1/2","answer":"<"},{"type":"add","frac1":"1/4","frac2":"2/4","answer":"3/4"}]}]
+For Grade 1-2: identify simple fractions. For 3-4: compare and add like denominators. For 5+: mixed numbers.
+Return ONLY valid JSON, no markdown.`,
+
+                money: `Generate ${count} unique Money & Budget worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Money Skills #1","problems":[{"type":"count_coins","coins":["quarter","dime","nickel","penny","penny"],"total":"$0.42"},{"type":"enough_money","item":"pencil","price":"$0.75","have":"$1.00","enough":true},{"type":"make_change","paid":"$5.00","cost":"$3.25","change":"$1.75"}]}]
+For K-1: identify coins, count pennies. For 2-3: count mixed coins, compare prices. For 4+: budgeting, making change.
+Return ONLY valid JSON, no markdown.`,
+
+                time: `Generate ${count} unique Time & Clock worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Telling Time #1","problems":[{"type":"read_clock","hour":3,"minute":30,"answer":"3:30"},{"type":"draw_clock","time":"2:15"},{"type":"elapsed","start":"1:00","end":"3:30","elapsed":"2 hours 30 minutes"}]}]
+For K-1: hour and half hour. For 2: quarter hours. For 3+: 5-minute intervals and elapsed time.
+Return ONLY valid JSON, no markdown.`,
+
+                measurement: `Generate ${count} unique Measurement worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Measurement Practice #1","problems":[{"type":"ruler","object":"pencil","length":5,"unit":"inches"},{"type":"compare","item1":"book","item2":"eraser","answer":"book is longer"},{"type":"convert","value":3,"from":"feet","to":"inches","answer":36}]}]
+Return ONLY valid JSON, no markdown.`,
+
+                geometry: `Generate ${count} unique Geometry & Shapes worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Shapes & Geometry #1","problems":[{"type":"identify","shape":"triangle","sides":3,"vertices":3},{"type":"area","shape":"rectangle","length":5,"width":3,"area":15,"unit":"sq cm"},{"type":"perimeter","shape":"square","side":4,"perimeter":16}]}]
+For K-2: identify and count sides. For 3-4: area and perimeter. For 5+: angles, transformations.
+Return ONLY valid JSON, no markdown.`,
+
+                factFluency: `Generate ${count} unique Math Fact Fluency pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should have 20-30 rapid-fire problems in a grid layout.
+Return JSON array: [{"id":1,"title":"Math Facts Sprint #1","timeLimit":"2 minutes","problems":[{"expression":"3+5","answer":8},{"expression":"9-4","answer":5},...]}]
+For 1-2: addition/subtraction facts to 20. For 3-4: multiplication facts. For 5+: mixed operations.
+Return ONLY valid JSON, no markdown.`,
+
+                wordProblems: `Generate ${count} unique Word Problem worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should have 4-8 word problems depending on grade.
+Return JSON array: [{"id":1,"title":"Word Problems #1","problems":[{"problem":"Sara has 5 apples. She gets 3 more. How many apples does she have now?","equation":"5 + 3 = ?","answer":8,"skill":"addition"}]}]
+Problems must be age-appropriate, using real-world scenarios. Include space for showing work.
+Return ONLY valid JSON, no markdown.`,
+
+                // ELA
+                sightWords: `Generate ${count} unique Sight Words worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Use Dolch/Fry sight words appropriate for the grade level.
+Return JSON array: [{"id":1,"title":"Sight Words Practice #1","words":["the","and","is","it","you"],"activities":[{"type":"trace","word":"the"},{"type":"write_sentence","word":"the","sentence":"I like ___ cat."},{"type":"find_word","word":"and","grid":[["a","n","d","x"],["t","h","e","y"]]}]}]
+For K: pre-primer and primer words. For 1st: first grade list. For 2nd+: grade-level lists.
+Return ONLY valid JSON, no markdown.`,
+
+                phonics: `Generate ${count} unique Phonics worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Phonics: SH Words #1","focus":"sh","words":["ship","shop","shell","fish","wish"],"activities":[{"type":"circle","instruction":"Circle the pictures that start with SH","items":["ship","car","shell","shoe","ball"]},{"type":"fill_blank","sentences":["The ___ is in the sea. (fish/dish)","I went to the ___ . (ship/shop)"]}]}]
+Focus on: CVC words for K, blends for 1st, digraphs (sh, ch, th, wh, ph, ck) for 1st-2nd, vowel teams for 2nd-3rd.
+Return ONLY valid JSON, no markdown.`,
+
+                readingComp: `Generate ${count} unique Reading Comprehension passages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Reading Comprehension #1","passage":"Max the dog loved to play in the park. Every morning, he would run and chase butterflies...","wordCount":80,"questions":[{"question":"Where did Max like to play?","type":"literal","answer":"in the park"},{"question":"What did Max chase?","type":"literal","answer":"butterflies"},{"question":"How do you think Max felt at the park?","type":"inferential","answer":"happy/excited"}]}]
+Passage length: K-1: 50-80 words, 2-3: 100-150 words, 4-5: 150-250 words, 6+: 250-400 words.
+Include 4-6 comprehension questions: literal, inferential, vocabulary, and main idea.
+Return ONLY valid JSON, no markdown.`,
+
+                handwriting: `Generate ${count} unique Handwriting Practice pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Handwriting Practice #1","type":"letters","content":[{"letter":"A","uppercase":"A","lowercase":"a","word":"apple"},{"letter":"B","uppercase":"B","lowercase":"b","word":"ball"}],"style":"print"}]
+For PreK-K: letter tracing uppercase/lowercase. For 1st: words and short sentences. For 2nd+: sentences and paragraphs.
+Return ONLY valid JSON, no markdown.`,
+
+                spelling: `Generate ${count} unique Spelling Activity pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Spelling Practice #1","words":["cat","bat","hat","mat","sat"],"activities":[{"type":"rainbow_write","instruction":"Write each word 3 times in different colors"},{"type":"scramble","word":"cat","scrambled":"tca"},{"type":"fill_sentence","sentence":"The ___ sat on the mat.","answer":"cat"}]}]
+Use grade-appropriate spelling words following common patterns.
+Return ONLY valid JSON, no markdown.`,
+
+                grammar: `Generate ${count} unique Grammar worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Grammar Practice #1","focus":"nouns","exercises":[{"type":"identify","sentence":"The happy dog ran fast.","target":"nouns","answers":["dog"]},{"type":"fill_blank","sentence":"The ___ is on the table.","options":["book","quickly","blue"],"answer":"book"},{"type":"sort","words":["run","cat","big","jump","house","small"],"categories":{"nouns":["cat","house"],"verbs":["run","jump"],"adjectives":["big","small"]}}]}]
+For 1st-2nd: nouns, verbs, adjectives. For 3rd-4th: adverbs, pronouns, punctuation. For 5th+: complex sentences, clauses.
+Return ONLY valid JSON, no markdown.`,
+
+                vocabulary: `Generate ${count} unique Vocabulary Building pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Vocabulary Builder #1","words":[{"word":"enormous","definition":"very large","sentence":"The elephant was enormous.","synonym":"huge","antonym":"tiny"}],"activities":[{"type":"match","pairs":[["enormous","very large"],["tiny","very small"]]},{"type":"context_clues","passage":"The enormous elephant walked slowly through the jungle.","question":"What does enormous mean?","answer":"very large"}]}]
+Return ONLY valid JSON, no markdown.`,
+
+                // PUZZLES
+                sudoku: `Generate ${count} unique Sudoku puzzles for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Sudoku Puzzle #1","grid":[[5,3,0,0,7,0,0,0,0],[6,0,0,1,9,5,0,0,0],...],"solution":[[5,3,4,6,7,8,9,1,2],...]}]
+Use 0 for empty cells. For K-2: 4x4 (values 1-4). For 3-5: 6x6 (values 1-6). For 6+: 9x9.
+Difficulty affects given cells: beginner=45%, easy=38%, medium=30%, hard=25%, advanced=20%.
+Return ONLY valid JSON, no markdown.`,
+
+                wordSearch: `Generate ${count} unique Word Search puzzles for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Word Search #1","size":12,"words":["APPLE","BANANA","CHERRY"],"grid":[["A","P","P","L","E","X",...],...]}]
+Words placed horizontally, vertically, diagonally. Size: 10x10 for K-2, 12x12 for 3-5, 15x15 for 6+.
+Use grade-appropriate vocabulary words. 8-15 words per puzzle.
+Return ONLY valid JSON, no markdown.`,
+
+                crossword: `Generate ${count} unique Crossword puzzles for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Crossword #1","size":8,"grid":[[null,"1",null,...],...], "clues":{"across":[{"num":1,"clue":"Opposite of hot","answer":"COLD"}],"down":[{"num":2,"clue":"A fruit that is red","answer":"APPLE"}]},"solution":[[null,"C","O","L","D",...],...]}]
+Grid: null=black, cells for letters. Use grade-appropriate vocabulary.
+Return ONLY valid JSON, no markdown.`,
+
+                cryptogram: `Generate ${count} unique Secret Code/Cryptogram puzzles for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Secret Code #1","message":"READING IS FUN","cipher":{"A":"M","B":"X",...},"hint":"R=X, E=Y"}]
+Messages should be educational and age-appropriate. For younger: 3-5 word messages. For older: full sentences.
+Return ONLY valid JSON, no markdown.`,
+
+                mazes: `Generate ${count} unique Math Maze descriptions for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Math Maze #1","gridSize":8,"start":[0,0],"end":[7,7],"path":[[0,0],[0,1],[1,1],...],"problems":[{"position":[0,1],"problem":"3+2","answer":5,"correct_direction":"right"},...],"wrongPaths":[[1,0],[2,0],...]}]
+Each cell on the correct path has a math problem. Solving it reveals the next direction.
+Return ONLY valid JSON, no markdown.`,
+
+                logicGrid: `Generate ${count} unique Logic Puzzle pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Logic Puzzle #1","scenario":"Three friends each have a different pet.","characters":["Amy","Ben","Cat"],"categories":["pet"],"options":{"pet":["dog","cat","fish"]},"clues":["Amy does not have a fish.","The person with the dog is not Ben.","Cat has a cat."],"solution":{"Amy":"dog","Ben":"fish","Cat":"cat"}}]
+For Grade 2-3: 3x3 grid. For 4-5: 4x4. For 6+: 4x5 or 5x5.
+Return ONLY valid JSON, no markdown.`,
+
+                // EARLY LEARNING
+                alphabetTrace: `Generate ${count} unique Alphabet Tracing pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Alphabet Tracing: Letters A-E","letters":[{"upper":"A","lower":"a","word":"apple","emoji":"🍎"},{"upper":"B","lower":"b","word":"ball","emoji":"⚽"},...]}]
+For PreK: 2-3 letters per page with large tracing. For K: 4-5 letters with words. For 1st: full alphabet review.
+Return ONLY valid JSON, no markdown.`,
+
+                numberTrace: `Generate ${count} unique Number Tracing pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Number Tracing: 1-5","numbers":[{"number":1,"word":"one","objects":"⭐","count":1},{"number":2,"word":"two","objects":"⭐⭐","count":2},...]}]
+For PreK: numbers 1-5. For K: 1-20. For 1st: 1-100 by tens.
+Return ONLY valid JSON, no markdown.`,
+
+                colorShape: `Generate ${count} unique Colors & Shapes activity pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Colors & Shapes #1","activities":[{"type":"color_by_number","grid":[[1,2,1],[3,1,3]],"legend":{"1":"red","2":"blue","3":"green"}},{"type":"shape_match","shapes":["circle","square","triangle"],"descriptions":["has 3 sides","is round","has 4 equal sides"]}]}]
+Return ONLY valid JSON, no markdown.`,
+
+                cutPaste: `Generate ${count} unique Cut & Paste sorting activity pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Cut & Paste: Sort by Category","categories":["Farm Animals","Pet Animals"],"items":[{"name":"cow","category":"Farm Animals","emoji":"🐄"},{"name":"cat","category":"Pet Animals","emoji":"🐱"},...]}]
+Return ONLY valid JSON, no markdown.`,
+
+                patterns: `Generate ${count} unique Pattern Activity pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Pattern Practice #1","patterns":[{"sequence":["🔴","🔵","🔴","🔵"],"next":"🔴","type":"AB"},{"sequence":["⭐","⭐","🌙","⭐","⭐","🌙"],"next":"⭐","type":"AAB"}]}]
+For PreK: AB patterns. For K: ABC, ABB. For 1st: AABB, growing patterns. For 2nd+: number patterns.
+Return ONLY valid JSON, no markdown.`,
+
+                // OTHER
+                science: `Generate ${count} unique Science worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Life Cycle of a Butterfly","topic":"life_cycles","content":[{"type":"sequence","steps":["egg","caterpillar","chrysalis","butterfly"],"instruction":"Cut and paste the stages in the correct order"},{"type":"label","diagram":"butterfly","labels":["wings","antenna","legs","body"]}]}]
+Topics: life cycles, weather, plants, animals, habitats, simple machines, states of matter.
+Return ONLY valid JSON, no markdown.`,
+
+                socialStudies: `Generate ${count} unique Social Studies worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Community Helpers #1","topic":"community","content":[{"type":"match","pairs":[["firefighter","puts out fires"],["doctor","helps sick people"]]},{"type":"fill_blank","sentences":["A ___ delivers mail to your house."]}]}]
+Topics: community helpers, maps, holidays, government basics, geography.
+Return ONLY valid JSON, no markdown.`,
+
+                lifeSkills: `Generate ${count} unique Life Skills worksheet pages for Grade ${grade}, difficulty: ${difficulty}.
+Return JSON array: [{"id":1,"title":"Daily Schedule Practice","topic":"time_management","content":[{"type":"schedule","activities":[{"time":"7:00 AM","activity":"Wake up"},{"time":"7:30 AM","activity":"Breakfast"}]},{"type":"budget","scenario":"You have $10. Can you buy all items?","items":[{"name":"pencil","price":1.50},{"name":"notebook","price":3.00}]}]}]
+Return ONLY valid JSON, no markdown.`,
+
+                morningWork: `Generate ${count} unique Morning Work pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should contain 4-6 mixed math AND ELA review problems for daily spiral review.
+Return JSON array: [{"id":1,"title":"Morning Work - Day 1","mathProblems":[{"problem":"5 + 3 = ___","answer":8},{"problem":"Write the number 42 in expanded form","answer":"40 + 2"}],"elaProblems":[{"problem":"Circle the noun: The big dog ran fast.","answer":"dog"},{"problem":"Write this sentence correctly: i like cats","answer":"I like cats."}]}]
+Mix skills from previous lessons. Include number sense, operations, grammar, spelling, and reading.
+Return ONLY valid JSON, no markdown.`,
+
+                noPrep: `Generate ${count} unique No-Prep Activity pages for Grade ${grade}, difficulty: ${difficulty}.
+Each page should be a self-contained mixed activity requiring no preparation.
+Return JSON array: [{"id":1,"title":"No-Prep Activity #1","sections":[{"title":"Math Corner","type":"math","problems":[{"expression":"7+8","answer":15}]},{"title":"Word Work","type":"ela","activity":"Write 3 words that rhyme with 'cat'","answers":["bat","hat","mat"]},{"title":"Brain Teaser","type":"puzzle","problem":"What comes next: 2, 4, 6, ___","answer":"8"}]}]
+Return ONLY valid JSON, no markdown.`
+            };
+            return prompts[type] || prompts.addition;
+        }
+
+        // ================================================
+        // DOM REFERENCES
+        // ================================================
+        // ในส่วนที่ประกาศ DOM
+const DOM = {
+  apiProvider: document.getElementById('apiProvider'),
+  apiKey: document.getElementById('apiKey'),
+  apiConnectBtn: document.getElementById('apiConnectBtn')
+};
+
+// ฟังก์ชันเรียก API สำหรับทุกโมเดล
+function callLlm(provider, prompt, isZeroShot = false) {
+  switch(provider) {
+    case 'gemini':
+      return callGemini(prompt, isZeroShot);
+    case 'groq':
+      return groqCall(prompt, isZeroShot);
+    case 'openrouter':
+      return openRouterCall(prompt, isZeroShot);
+    case 'deepseek':
+      return deepSeekCall(prompt, isZeroShot);
+    default:
+      throw new Error('Unsupported provider');
+  }
+}
+
+// ฟังก์ชันเฉพาะสำหรับแต่ละ Provider
+function callGemini(prompt, isZeroShot) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: isZeroShot ? 0 : 0.7,
+        maxOutputTokens: isZeroShot ? 5000 : 8192
+      }
+    })
+  }).then(r => r.json()).then(d => d.candidates[0].content.parts[0].text);
+}
+
+function groqCall(prompt, isZeroShot) {
+  const model = isZeroShot ? 'mixtral-8x7b-32768' : 'llama3-8b-8192';
+  return fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: isZeroShot ? 0 : 0.7
+    })
+  }).then(r => r.json()).then(d => d.choices[0].message.content);
+}
+
+function openRouterCall(prompt, isZeroShot) {
+  const model = isZeroShot ? 'google/gemma-7b-it' : 'mistralai/mistral-7b-instruct-v0.2';
+  return fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.href
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: isZeroShot ? 0 : 0.7
+    })
+  }).then(r => r.json()).then(d => d.results[0].message.content);
+}
+
+function deepSeekCall(prompt, isZeroShot) {
+  return fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: isZeroShot ? 0 : 0.7
+    })
+  }).then(r => r.json()).then(d => d.choices[0].message.content);
+}
+
+// ปรับเปลี่ยนฟังก์ชันการเรียก API ใน generateWorksheets
+async function generateWorksheets() {
+  // ... existing code ...
+  const prompt = getPrompt(APP.selectedType, DOM.gradeLevel.value, DOM.difficulty.value, DOM.pageCount.value);
+  showLoading(`Generating ${count} worksheets...`, 'Processing...');
+  DOM.progressBar.style.display = 'block';
+  
+  try {
+    const response = await callLlm(DOM.apiProvider.value, prompt);
+    // ... process response and generate worksheets ...
+  } catch (error) {
+    showToast(`API Error: ${error.message}`, 'error');
+  }
+}
+
+
+        // ================================================
+        // INITIALIZATION
+        // ================================================
+        function init() {
+            renderCategoryTypes();
+            renderNicheAnalysis();
+            setupEventListeners();
+        }
+
+        function renderCategoryTypes() {
+            const grid = DOM.worksheetTypeGrid;
+            grid.innerHTML = '';
+            const cat = CATEGORIES[APP.selectedCategory];
+            if (!cat) return;
+
+            const types = Object.entries(cat.types);
+            let firstKey = null;
+
+            types.forEach(([key, info], idx) => {
+                if (idx === 0) firstKey = key;
+                const card = document.createElement('div');
+                card.className = `worksheet-type-card${key === APP.selectedType || (idx === 0 && !cat.types[APP.selectedType]) ? ' active' : ''}`;
+                card.dataset.type = key;
+                card.innerHTML = `<span class="wt-emoji">${info.emoji}</span><span class="wt-name">${info.name}</span>`;
+                card.addEventListener('click', () => {
+                    grid.querySelectorAll('.worksheet-type-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    APP.selectedType = key;
+                });
+                grid.appendChild(card);
+            });
+
+            // Set active type to first in category if current doesn't exist
+            if (!cat.types[APP.selectedType]) {
+                APP.selectedType = firstKey;
+            }
+        }
+
+        function renderNicheAnalysis() {
+            const grid = DOM.nicheGrid;
+            grid.innerHTML = '';
+            NICHE_DATA.forEach(niche => {
+                const opportunityColor = niche.opportunity >= 80 ? '#10B981' : niche.opportunity >= 65 ? '#F59E0B' : '#EF4444';
+                const saturationColor = niche.saturation >= 70 ? '#EF4444' : niche.saturation >= 40 ? '#F59E0B' : '#10B981';
+
+                const card = document.createElement('div');
+                card.className = 'niche-card';
+                card.innerHTML = `
+                <div class="niche-card-header">
+                    <span class="niche-name">${niche.name}</span>
+                    <span class="niche-badge ${niche.badge}">${niche.badge === 'gold' ? '🔥 High Opp.' : niche.badge === 'hot' ? '⚠️ Saturated' : niche.badge === 'warm' ? '📊 Medium' : '❄️ Low Comp.'}</span>
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Opportunity Score</div>
+                <div class="niche-meter">
+                    <div class="niche-meter-fill" style="width:${niche.opportunity}%; background:${opportunityColor};"></div>
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin:6px 0 2px;">Saturation</div>
+                <div class="niche-meter">
+                    <div class="niche-meter-fill" style="width:${niche.saturation}%; background:${saturationColor};"></div>
+                </div>
+                <div class="niche-stats">
+                    <span>💰 ${niche.price}</span>
+                    <span>📈 Demand: ${niche.demand}%</span>
+                </div>
+                <div style="font-size:11px; color:var(--text-accent); margin-top:8px; line-height:1.4;">💡 ${niche.tip}</div>
+            `;
+                grid.appendChild(card);
+            });
+        }
+
+        // ================================================
+        // EVENT LISTENERS
+        // ================================================
+        function setupEventListeners() {
+            // Category tabs
+            DOM.categoryTabs.querySelectorAll('.category-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    DOM.categoryTabs.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    APP.selectedCategory = tab.dataset.category;
+                    renderCategoryTypes();
+                });
+            });
+
+            // Main tabs
+            DOM.mainTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    DOM.mainTabs.forEach(t => t.classList.remove('active'));
+                    DOM.tabPanels.forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+                });
+            });
+
+            // Generate
+            DOM.generateBtn.addEventListener('click', generateWorksheets);
+            DOM.generateSeoBtn.addEventListener('click', generateSEO);
+            DOM.generateThumbnailsBtn.addEventListener('click', generateThumbnails);
+
+            // Export
+            DOM.exportPdfBtn.addEventListener('click', () => exportPDF('worksheet'));
+            DOM.exportZipBtn.addEventListener('click', exportZIP);
+            DOM.exportAnswerKeyBtn.addEventListener('click', () => exportPDF('answerkey'));
+            DOM.exportImagesBtn.addEventListener('click', exportImages);
+
+            // Controls change
+            DOM.lowInk.addEventListener('change', () => {
+                if (APP.worksheets.length > 0) renderPreview();
+            });
+            DOM.paperSize.addEventListener('change', () => {
+                if (APP.worksheets.length > 0) renderPreview();
+            });
+        }
+
+        // ================================================
+        // GEMINI API
+        // ================================================
+        async function callGemini(prompt) {
+            const apiKey = DOM.apiKey.value.trim();
+            if (!apiKey) {
+                showToast('Please enter your Gemini API Key', 'error');
+                throw new Error('No API key');
+            }
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topP: 0.9,
+                        topK: 40,
+                        maxOutputTokens: 8192
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || 'API call failed');
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // ================================================
+        // GENERATE WORKSHEETS
+        // ================================================
+        async function generateWorksheets() {
+            const count = parseInt(DOM.pageCount.value);
+            const grade = DOM.gradeLevel.value;
+            const diff = DOM.difficulty.value;
+            const theme = DOM.worksheetTheme.value;
+            const type = APP.selectedType;
+            const typeInfo = getTypeInfo(type);
+
+            showLoading(`Generating ${count} ${typeInfo.name} worksheets...`, 'Gemini AI is working');
+            DOM.progressBar.style.display = 'block';
+            DOM.progressFill.style.width = '0%';
+
+            try {
+                const prompt = getPrompt(type, grade, diff, count, theme);
+                DOM.progressFill.style.width = '30%';
+
+                const response = await callGemini(prompt);
+                DOM.progressFill.style.width = '70%';
+
+                let jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                const worksheets = JSON.parse(jsonStr);
+                APP.worksheets = worksheets;
+
+                DOM.progressFill.style.width = '100%';
+                renderPreview();
+                hideLoading();
+                showToast(`Generated ${worksheets.length} ${typeInfo.name} worksheets!`, 'success');
+
+                setTimeout(() => {
+                    DOM.progressBar.style.display = 'none';
+                }, 1000);
+            } catch (error) {
+                hideLoading();
+                showToast(`Error: ${error.message}`, 'error');
+                DOM.progressBar.style.display = 'none';
+                console.error('Generate error:', error);
+            }
+        }
+
+        function getTypeInfo(type) {
+            for (const [catKey, cat] of Object.entries(CATEGORIES)) {
+                if (cat.types[type]) return cat.types[type];
+            }
+            return { name: 'Worksheet', emoji: '📄' };
+        }
+
+        function getCategoryForType(type) {
+            for (const [catKey, cat] of Object.entries(CATEGORIES)) {
+                if (cat.types[type]) return catKey;
+            }
+            return 'math';
+        }
+
+        // ================================================
+        // RENDER PREVIEW
+        // ================================================
+        function renderPreview() {
+            const container = DOM.previewContainer;
+            container.innerHTML = '';
+            const type = APP.selectedType;
+            const theme = DOM.worksheetTheme.value;
+            const storeName = DOM.storeName.value || 'MathFun Academy';
+            const grade = DOM.gradeLevel.value;
+            const typeInfo = getTypeInfo(type);
+
+            // Cover Page
+            if (DOM.includeCover.checked) {
+                const cover = createPage(theme);
+                cover.querySelector('.ws-page-inner').innerHTML = `
+                <div style="text-align:center; padding:60px 20px;">
+                    <div style="font-size:64px; margin-bottom:16px;">${typeInfo.emoji}</div>
+                    <h1 style="font-family:var(--font-display); font-size:32px; color:#7C3AED; margin-bottom:12px; line-height:1.2;">
+                        ${typeInfo.name} Worksheets
+                    </h1>
+                    <p style="font-size:16px; color:#6B7280; margin-bottom:8px;">
+                        Grade ${grade} • ${capitalize(DOM.difficulty.value)} Level
+                    </p>
+                    <p style="font-size:14px; color:#9CA3AF; margin-bottom:40px;">
+                        ${APP.worksheets.length} Practice Pages + Answer Keys
+                    </p>
+                    <div style="width:100px; height:3px; background:#7C3AED; margin:0 auto 40px; border-radius:2px;"></div>
+                    <p style="font-size:12px; color:#9CA3AF;">© ${new Date().getFullYear()} ${storeName}. All rights reserved.</p>
+                    <p style="font-size:11px; color:#D1D5DB; margin-top:8px;">For single classroom use only. Do not redistribute.</p>
+                </div>
+            `;
+                container.appendChild(cover);
+            }
+
+            // Worksheet Pages — with auto-pagination
+            let globalPageNum = DOM.includeCover.checked ? 1 : 0;
+
+            APP.worksheets.forEach((ws, idx) => {
+                // First: render content into an off-screen temp div to measure height
+                const tempDiv = document.createElement('div');
+                tempDiv.style.cssText = `position:absolute; left:-9999px; top:-9999px; width:${PAGE_WIDTH - 72}px; font-family:var(--font-worksheet);`;
+                document.body.appendChild(tempDiv);
+                renderWorksheetContent(tempDiv, ws, type, idx);
+
+                // Get all direct child elements (each problem/exercise block)
+                const childEls = Array.from(tempDiv.children);
+                // If the renderer wraps everything in one container, dig into its children
+                let items = childEls;
+                if (childEls.length === 1 && childEls[0].children.length > 1) {
+                    items = Array.from(childEls[0].children);
+                }
+
+                // Calculate available content height per page
+                const pageH = getPageHeight();
+                const headerH = 130; // header + directions approximate height
+                const footerH = 40;
+                const contentMaxH = pageH - headerH - footerH - 20; // 20px safety
+
+                // Split items into page-groups
+                const pageGroups = [];
+                let currentGroup = [];
+                let currentH = 0;
+
+                items.forEach(item => {
+                    const itemH = item.offsetHeight + 14; // 14px gap/margin
+                    if (currentH + itemH > contentMaxH && currentGroup.length > 0) {
+                        pageGroups.push(currentGroup);
+                        currentGroup = [item];
+                        currentH = itemH;
+                    } else {
+                        currentGroup.push(item);
+                        currentH += itemH;
+                    }
+                });
+                if (currentGroup.length > 0) pageGroups.push(currentGroup);
+                // If nothing was split (single block content), just use one page
+                if (pageGroups.length === 0) pageGroups.push([]);
+
+                document.body.removeChild(tempDiv);
+
+                // Create a real page for each group
+                pageGroups.forEach((group, pgIdx) => {
+                    globalPageNum++;
+                    const page = createPage(theme);
+                    const inner = page.querySelector('.ws-page-inner');
+
+                    const subtitle = pageGroups.length > 1 ? ` (${pgIdx + 1}/${pageGroups.length})` : '';
+                    inner.innerHTML = `
+                    <div class="ws-header">
+                        <div class="ws-title-area">
+                            <div class="ws-title">${ws.title || `${typeInfo.name} #${idx + 1}`}${subtitle}</div>
+                            <div class="ws-subtitle">${typeInfo.name} • Grade ${grade}</div>
+                        </div>
+                        <div class="ws-meta">
+                            <span class="ws-meta-field">Name: _______________</span>
+                            <span class="ws-meta-field">Date: __________</span>
+                        </div>
+                    </div>
+                    ${pgIdx === 0 ? `<div class="ws-directions"><strong>Directions:</strong> ${getDirections(type)}</div>` : ''}
+                    <div class="ws-content"></div>
+                    <div class="ws-footer">
+                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>Page ${globalPageNum}</span>
+                    </div>
+                    `;
+                    container.appendChild(page);
+
+                    const contentEl = page.querySelector('.ws-content');
+                    if (group.length > 0) {
+                        // Re-render only this group's items
+                        group.forEach(item => contentEl.appendChild(item.cloneNode(true)));
+                    } else {
+                        // Fallback: render everything into single page
+                        renderWorksheetContent(contentEl, ws, type, idx);
+                    }
+                });
+            });
+
+            // Answer Key
+            if (DOM.includeAnswerKey.checked) {
+                globalPageNum++;
+                const akPage = createPage(theme);
+                akPage.querySelector('.ws-page-inner').innerHTML = `
+                <div class="ws-header">
+                    <div class="ws-title-area">
+                        <div class="ws-title">🔑 Answer Key</div>
+                        <div class="ws-subtitle">Teacher Use Only</div>
+                    </div>
+                </div>
+                <div class="ws-content" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    ${APP.worksheets.map((ws, idx) => renderAnswerKey(ws, idx, type)).join('')}
+                </div>
+                <div class="ws-footer">
+                    <span>© ${new Date().getFullYear()} ${storeName}</span>
+                    <span>Answer Key</span>
+                </div>
+            `;
+                container.appendChild(akPage);
+            }
+        }
+
+        // Page height constants (in px at 680px width)
+        const PAGE_WIDTH = 680;
+        const A4_HEIGHT = 960;     // 680 * (297/210) ≈ 960
+        const LETTER_HEIGHT = 880; // 680 * (11/8.5) ≈ 880
+
+        function getPageHeight() {
+            return (DOM.paperSize && DOM.paperSize.value === 'a4') ? A4_HEIGHT : LETTER_HEIGHT;
+        }
+
+        function createPage(theme) {
+            const page = document.createElement('div');
+            const isLowInk = DOM.lowInk ? DOM.lowInk.checked : false;
+            page.className = `ws-page theme-${theme}${isLowInk ? ' low-ink' : ''}`;
+            page.style.width = PAGE_WIDTH + 'px';
+            page.style.height = getPageHeight() + 'px';
+            page.innerHTML = '<div class="ws-page-inner"></div>';
+            return page;
+        }
+
+        // ================================================
+        // WORKSHEET CONTENT RENDERERS
+        // ================================================
+        function renderWorksheetContent(el, ws, type, idx) {
+            switch (type) {
+                // Math
+                case 'addition':
+                case 'multiplication':
+                    renderMathProblems(el, ws); break;
+                case 'factFluency':
+                    renderFactFluency(el, ws); break;
+                case 'placeValue':
+                    renderPlaceValue(el, ws); break;
+                case 'fractions':
+                    renderFractions(el, ws); break;
+                case 'money':
+                    renderMoney(el, ws); break;
+                case 'time':
+                    renderTime(el, ws); break;
+                case 'measurement':
+                    renderMeasurement(el, ws); break;
+                case 'geometry':
+                    renderGeometry(el, ws); break;
+                case 'wordProblems':
+                    renderWordProblems(el, ws); break;
+                // ELA
+                case 'sightWords':
+                    renderSightWords(el, ws); break;
+                case 'phonics':
+                    renderPhonics(el, ws); break;
+                case 'readingComp':
+                    renderReadingComp(el, ws); break;
+                case 'handwriting':
+                    renderHandwriting(el, ws); break;
+                case 'spelling':
+                    renderSpelling(el, ws); break;
+                case 'grammar':
+                    renderGrammar(el, ws); break;
+                case 'vocabulary':
+                    renderVocabulary(el, ws); break;
+                // Puzzles
+                case 'sudoku':
+                    renderSudoku(el, ws); break;
+                case 'wordSearch':
+                    renderWordSearch(el, ws); break;
+                case 'crossword':
+                    renderCrossword(el, ws); break;
+                case 'cryptogram':
+                    renderCryptogram(el, ws); break;
+                case 'mazes':
+                    renderMaze(el, ws); break;
+                case 'logicGrid':
+                    renderLogicGrid(el, ws); break;
+                // Early Learning
+                case 'alphabetTrace':
+                    renderAlphabetTrace(el, ws); break;
+                case 'numberTrace':
+                    renderNumberTrace(el, ws); break;
+                case 'colorShape':
+                    renderColorShape(el, ws); break;
+                case 'cutPaste':
+                    renderCutPaste(el, ws); break;
+                case 'patterns':
+                    renderPatterns(el, ws); break;
+                // Other
+                case 'science':
+                    renderScience(el, ws); break;
+                case 'socialStudies':
+                    renderSocialStudies(el, ws); break;
+                case 'lifeSkills':
+                    renderLifeSkills(el, ws); break;
+                case 'morningWork':
+                    renderMorningWork(el, ws); break;
+                case 'noPrep':
+                    renderNoPrep(el, ws); break;
+                default:
+                    el.innerHTML = '<p style="color:#9CA3AF; text-align:center;">Renderer not available for this type yet.</p>';
+            }
+        }
+
+        // --- MATH RENDERERS ---
+        function renderMathProblems(el, ws) {
+            const problems = ws.problems || [];
+            const format = ws.format || 'vertical';
+            const cols = problems.length > 12 ? 4 : problems.length > 8 ? 3 : 2;
+
+            let html = `<div class="math-problems cols-${cols}">`;
+            problems.forEach((p, i) => {
+                if (format === 'vertical') {
+                    html += `
+                    <div class="math-problem">
+                        <div class="math-problem-num">${i + 1}.</div>
+                        <div class="math-problem-vertical">
+                            <div class="operand">${p.num1}</div>
+                            <div class="operator-row">
+                                <span class="operator">${p.operation}</span>
+                                <div class="operand">${p.num2}</div>
+                            </div>
+                            <div class="answer-line"></div>
+                        </div>
+                    </div>`;
+                } else {
+                    html += `
+                    <div class="math-problem">
+                        <div class="math-problem-num">${i + 1}.</div>
+                        <div class="math-problem-horizontal">
+                            <span>${p.num1} ${p.operation} ${p.num2} = </span>
+                            <span class="math-answer-blank"></span>
+                        </div>
+                    </div>`;
+                }
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderFactFluency(el, ws) {
+            const problems = ws.problems || [];
+            const timeLimit = ws.timeLimit || '2 minutes';
+            let html = `
+            <div style="text-align:center; margin-bottom:16px; padding:8px; background:#EDE9FE; border-radius:8px;">
+                <span style="font-family:var(--font-display); font-size:14px; color:#7C3AED;">⏱️ Time Limit: ${timeLimit} | Score: ____/${problems.length}</span>
+            </div>
+            <div class="math-problems cols-${problems.length > 20 ? 4 : 3}">`;
+            problems.forEach((p, i) => {
+                html += `
+                <div class="math-problem" style="padding:8px;">
+                    <div class="math-problem-horizontal" style="font-size:16px;">
+                        <span style="color:#9CA3AF; font-size:11px; min-width:20px;">${i + 1}.</span>
+                        <span>${p.expression} = </span>
+                        <span class="math-answer-blank" style="width:30px;"></span>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderPlaceValue(el, ws) {
+            const exercises = ws.exercises || [];
+            let html = '';
+            exercises.forEach((ex, i) => {
+                html += `<div class="math-problem" style="padding:16px; margin-bottom:12px; text-align:left;">
+                <div style="font-size:11px; color:#9CA3AF; margin-bottom:6px; font-weight:700;">${i + 1}.</div>`;
+                if (ex.type === 'expand') {
+                    html += `<p style="font-size:15px; margin-bottom:8px;">Write <strong style="color:#7C3AED; font-size:20px;">${ex.number}</strong> in expanded form:</p>
+                    <div style="border-bottom:2px solid #E5E7EB; height:32px;"></div>`;
+                } else if (ex.type === 'identify') {
+                    html += `<p style="font-size:15px;">${ex.question}</p>
+                    <p style="font-size:28px; color:#7C3AED; font-weight:700; margin:8px 0;">${ex.number}</p>
+                    <p>Answer: <span class="math-answer-blank" style="width:60px;"></span></p>`;
+                } else if (ex.type === 'compare') {
+                    html += `<p style="font-size:15px;">Compare the numbers. Write &lt;, &gt;, or =</p>
+                    <div style="display:flex; align-items:center; gap:16px; justify-content:center; margin:12px 0;">
+                        <span style="font-size:24px; font-weight:700; color:#7C3AED;">${ex.num1}</span>
+                        <span class="math-answer-blank" style="width:40px;"></span>
+                        <span style="font-size:24px; font-weight:700; color:#EC4899;">${ex.num2}</span>
+                    </div>`;
+                }
+                html += '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        function renderFractions(el, ws) {
+            const problems = ws.problems || [];
+            let html = '<div style="display:grid; gap:16px;">';
+            problems.forEach((p, i) => {
+                html += `<div class="math-problem" style="padding:16px; text-align:left;">
+                <span style="font-size:11px; color:#9CA3AF; font-weight:700;">${i + 1}.</span> `;
+                if (p.type === 'identify') {
+                    html += `<span style="font-size:14px;">Shade <strong>${p.numerator}/${p.denominator}</strong> of the shape.</span>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        ${Array(p.denominator).fill(0).map(() => '<div style="width:30px; height:30px; border:2px solid #7C3AED; border-radius:4px;"></div>').join('')}
+                    </div>`;
+                } else if (p.type === 'compare') {
+                    html += `<span style="font-size:14px;">Compare: <strong>${p.frac1}</strong> <span class="math-answer-blank" style="width:30px;"></span> <strong>${p.frac2}</strong></span>`;
+                } else if (p.type === 'add') {
+                    html += `<span style="font-size:14px;"><strong>${p.frac1}</strong> + <strong>${p.frac2}</strong> = <span class="math-answer-blank" style="width:40px;"></span></span>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderMoney(el, ws) {
+            const problems = ws.problems || [];
+            let html = '<div style="display:grid; gap:14px;">';
+            problems.forEach((p, i) => {
+                html += `<div class="math-problem" style="padding:14px; text-align:left;">
+                <div class="math-problem-num">${i + 1}.</div>`;
+                if (p.type === 'count_coins') {
+                    const coinEmojis = { quarter: '🪙', dime: '🔵', nickel: '⚪', penny: '🟤' };
+                    html += `<span style="font-size:14px;">Count the coins:</span>
+                    <div style="display:flex; gap:6px; margin:8px 0; font-size:24px;">${(p.coins || []).map(c => coinEmojis[c] || '🪙').join('')}</div>
+                    <p>Total: $ <span class="math-answer-blank" style="width:60px;"></span></p>`;
+                } else if (p.type === 'enough_money' || (p.item && p.price)) {
+                    html += `<span style="font-size:14px;">You want to buy a <strong>${p.item || 'item'}</strong> that costs <strong>${p.price}</strong>. You have <strong>${p.have || '$10.00'}</strong>.</span>
+                    <p style="margin-top:8px;">Do you have enough? <span class="math-answer-blank" style="width:50px;"></span></p>`;
+                } else if (p.type === 'make_change' || (p.paid && p.cost)) {
+                    html += `<span style="font-size:14px;">You paid <strong>${p.paid}</strong> for something that costs <strong>${p.cost}</strong>.</span>
+                    <p style="margin-top:8px;">How much change? $ <span class="math-answer-blank" style="width:60px;"></span></p>`;
+                } else {
+                    const text = p.problem || p.question || p.scenario || (typeof p === 'string' ? p : 'Solve the money problem.');
+                    html += `<span style="font-size:14px; line-height:1.6;">${text}</span>
+                    <p style="margin-top:8px;">Answer: $ <span class="math-answer-blank" style="width:70px;"></span></p>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderTime(el, ws) {
+            const problems = ws.problems || [];
+            let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">';
+            problems.forEach((p, i) => {
+                html += `<div class="math-problem" style="padding:14px;">
+                <span style="font-size:11px; color:#9CA3AF; font-weight:700;">${i + 1}.</span>`;
+                if (p.type === 'read_clock') {
+                    html += renderClockSVG(p.hour, p.minute) +
+                        `<p style="margin-top:8px; font-size:14px;">Time: <span class="math-answer-blank" style="width:60px;"></span></p>`;
+                } else if (p.type === 'draw_clock') {
+                    html += renderClockSVG(0, 0, true) +
+                        `<p style="margin-top:8px; font-size:14px;">Draw: <strong>${p.time}</strong></p>`;
+                } else if (p.type === 'elapsed') {
+                    html += `<p style="font-size:14px;">Start: <strong>${p.start}</strong></p>
+                    <p style="font-size:14px;">End: <strong>${p.end}</strong></p>
+                    <p style="margin-top:8px;">Elapsed time: <span class="math-answer-blank" style="width:80px;"></span></p>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderClockSVG(hour, minute, blank) {
+            const h = hour % 12;
+            const m = minute || 0;
+            const hourAngle = (h + m / 60) * 30 - 90;
+            const minuteAngle = m * 6 - 90;
+            const hRad = hourAngle * Math.PI / 180;
+            const mRad = minuteAngle * Math.PI / 180;
+
+            return `<svg width="100" height="100" viewBox="0 0 100 100" style="display:block; margin:0 auto;">
+            <circle cx="50" cy="50" r="45" fill="white" stroke="#7C3AED" stroke-width="3"/>
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => {
+                const a = (n * 30 - 90) * Math.PI / 180;
+                return `<text x="${50 + 35 * Math.cos(a)}" y="${50 + 35 * Math.sin(a) + 4}" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">${n}</text>`;
+            }).join('')}
+            ${!blank ? `
+                <line x1="50" y1="50" x2="${50 + 22 * Math.cos(hRad)}" y2="${50 + 22 * Math.sin(hRad)}" stroke="#7C3AED" stroke-width="3" stroke-linecap="round"/>
+                <line x1="50" y1="50" x2="${50 + 32 * Math.cos(mRad)}" y2="${50 + 32 * Math.sin(mRad)}" stroke="#EC4899" stroke-width="2" stroke-linecap="round"/>
+            ` : ''}
+            <circle cx="50" cy="50" r="3" fill="#7C3AED"/>
+        </svg>`;
+        }
+
+        function renderMeasurement(el, ws) { renderGenericList(el, ws, 'measurement'); }
+        function renderGeometry(el, ws) { renderGenericList(el, ws, 'geometry'); }
+
+        function renderWordProblems(el, ws) {
+            const problems = ws.problems || [];
+            let html = '';
+            problems.forEach((p, i) => {
+                html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:14px;">
+                <div style="font-size:11px; color:#9CA3AF; font-weight:700; margin-bottom:6px;">Problem ${i + 1}</div>
+                <p style="font-size:14px; line-height:1.7; margin-bottom:12px;">${p.problem}</p>
+                <div style="background:#F9FAFB; border-radius:8px; padding:12px;">
+                    <p style="font-size:12px; color:#6B7280; margin-bottom:4px;">Show your work:</p>
+                    <div style="height:40px; border-bottom:1px dashed #E5E7EB;"></div>
+                    <div style="height:40px; border-bottom:1px dashed #E5E7EB;"></div>
+                    <p style="font-size:13px; margin-top:8px;">Answer: <span class="math-answer-blank" style="width:80px;"></span></p>
+                </div>
+            </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        // --- ELA RENDERERS ---
+        function renderSightWords(el, ws) {
+            const words = ws.words || [];
+            let html = '';
+            words.slice(0, 4).forEach(word => {
+                html += `<div class="sight-word-box">
+                <div class="sight-word-main">${typeof word === 'string' ? word : word}</div>
+                <div class="sight-word-activities">
+                    <div class="sw-activity">
+                        <div class="sw-activity-title">✏️ Trace & Write</div>
+                        <div style="font-family:var(--font-display); font-size:20px; color:#DDD6FE; letter-spacing:8px;">${typeof word === 'string' ? word : word}</div>
+                        <div style="height:24px; border-bottom:1px dashed #E5E7EB; margin-top:4px;"></div>
+                        <div style="height:24px; border-bottom:1px dashed #E5E7EB;"></div>
+                    </div>
+                    <div class="sw-activity">
+                        <div class="sw-activity-title">📝 Use in a sentence</div>
+                        <div style="height:24px; border-bottom:1px dashed #E5E7EB; margin-top:8px;"></div>
+                        <div style="height:24px; border-bottom:1px dashed #E5E7EB;"></div>
+                    </div>
+                </div>
+            </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        function renderPhonics(el, ws) {
+            const focus = ws.focus || 'sh';
+            const words = ws.words || [];
+            const activities = ws.activities || [];
+
+            let html = `<div class="phonics-card">
+            <div class="phonics-focus">${focus.toUpperCase()}</div>
+            <div class="word-bank" style="margin-bottom:16px;">
+                ${words.map(w => `<span class="word-bank-item">${w}</span>`).join('')}
+            </div>`;
+
+            activities.forEach(act => {
+                if (act.type === 'circle') {
+                    html += `<div style="margin-top:12px; padding:12px; background:#F9FAFB; border-radius:8px;">
+                    <p style="font-size:13px; font-weight:600; margin-bottom:8px;">📌 ${act.instruction}</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:12px;">
+                        ${(act.items || []).map(item => `<div style="padding:8px 16px; border:2px solid #E5E7EB; border-radius:8px; font-size:14px;">${item}</div>`).join('')}
+                    </div>
+                </div>`;
+                } else if (act.type === 'fill_blank') {
+                    html += `<div style="margin-top:12px;">
+                    <p style="font-size:13px; font-weight:600; margin-bottom:8px;">📝 Fill in the blank:</p>
+                    ${(act.sentences || []).map((s, i) => `<p style="font-size:14px; line-height:2; margin-bottom:4px;">${i + 1}. ${s}</p>`).join('')}
+                </div>`;
+                }
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderReadingComp(el, ws) {
+            const passage = ws.passage || '';
+            const questions = ws.questions || [];
+            el.innerHTML = `
+            <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:12px; padding:20px; margin-bottom:20px; line-height:1.8; font-size:14px;">
+                <div style="font-family:var(--font-display); font-size:13px; color:#16A34A; margin-bottom:8px;">📖 Read the passage:</div>
+                ${passage}
+            </div>
+            <div style="font-family:var(--font-display); font-size:14px; color:#7C3AED; margin-bottom:12px;">❓ Answer the questions:</div>
+            ${questions.map((q, i) => `
+                <div style="margin-bottom:14px;">
+                    <p style="font-size:14px; font-weight:600; margin-bottom:6px;">${i + 1}. ${q.question}</p>
+                    <div style="height:24px; border-bottom:1px dashed #E5E7EB;"></div>
+                    <div style="height:24px; border-bottom:1px dashed #E5E7EB;"></div>
+                </div>
+            `).join('')}
+        `;
+        }
+
+        function renderHandwriting(el, ws) {
+            const content = ws.content || [];
+            let html = '<div class="writing-lines">';
+            content.forEach(item => {
+                html += `<div class="writing-line-group" style="margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                    <span style="font-family:var(--font-display); font-size:40px; color:#7C3AED; font-weight:700;">${item.uppercase}${item.lowercase}</span>
+                    <span style="font-size:24px;">${item.word ? '— ' + item.word : ''}</span>
+                </div>
+                <div style="font-family:var(--font-display); font-size:28px; color:#E5E7EB; letter-spacing:16px; margin-bottom:4px;">
+                    ${item.uppercase} ${item.uppercase} ${item.uppercase} ${item.lowercase} ${item.lowercase} ${item.lowercase}
+                </div>
+                <div style="height:36px; border-bottom:1px solid #D1D5DB; position:relative;">
+                    <div style="position:absolute; top:50%; width:100%; border-top:1px dashed #E5E7EB;"></div>
+                </div>
+                <div style="height:36px; border-bottom:1px solid #D1D5DB; position:relative;">
+                    <div style="position:absolute; top:50%; width:100%; border-top:1px dashed #E5E7EB;"></div>
+                </div>
+            </div>`;
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderSpelling(el, ws) {
+            const words = ws.words || [];
+            const activities = ws.activities || [];
+            let html = `<div class="word-bank" style="margin-bottom:20px;">
+            ${words.map(w => `<span class="word-bank-item" style="font-size:15px; padding:6px 16px;">${w}</span>`).join('')}
+        </div>`;
+
+            activities.forEach(act => {
+                if (act.type === 'rainbow_write') {
+                    html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">
+                    <div style="font-family:var(--font-display); font-size:13px; color:#7C3AED; margin-bottom:8px;">🌈 Rainbow Write — ${act.instruction}</div>
+                    ${words.slice(0, 5).map(w => `<div style="height:28px; border-bottom:1px dashed #E5E7EB; margin-bottom:2px;"></div>`).join('')}
+                </div>`;
+                } else if (act.type === 'scramble') {
+                    html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">
+                    <div style="font-family:var(--font-display); font-size:13px; color:#EC4899; margin-bottom:8px;">🔀 Unscramble the Words</div>
+                    ${(activities.filter(a => a.type === 'scramble')).map((s, i) => `<p style="font-size:14px; margin-bottom:6px;">${i + 1}. <strong>${s.scrambled || ''}</strong> → <span class="math-answer-blank" style="width:60px;"></span></p>`).join('')}
+                </div>`;
+                }
+            });
+            el.innerHTML = html;
+        }
+
+        function renderGrammar(el, ws) {
+            const exercises = ws.exercises || [];
+            let html = '';
+            exercises.forEach((ex, i) => {
+                html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">
+                <span style="font-size:11px; color:#9CA3AF; font-weight:700;">${i + 1}.</span> `;
+                if (ex.type === 'identify') {
+                    html += `<p style="font-size:14px; margin:8px 0;">Identify the <strong style="color:#7C3AED;">${ex.target}</strong> in this sentence:</p>
+                    <p style="font-size:16px; padding:8px; background:#F9FAFB; border-radius:6px;">"${ex.sentence}"</p>
+                    <p style="margin-top:8px;">Answer: <span class="math-answer-blank" style="width:80px;"></span></p>`;
+                } else if (ex.type === 'fill_blank') {
+                    html += `<p style="font-size:14px; margin:8px 0;">Choose the correct word:</p>
+                    <p style="font-size:16px; padding:8px; background:#F9FAFB; border-radius:6px;">"${ex.sentence}"</p>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        ${(ex.options || []).map(o => `<span style="padding:4px 12px; border:2px solid #E5E7EB; border-radius:16px; font-size:13px;">${o}</span>`).join('')}
+                    </div>`;
+                } else if (ex.type === 'sort') {
+                    html += `<p style="font-size:14px; margin:8px 0;">Sort the words into categories:</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">
+                        ${(ex.words || []).map(w => `<span style="padding:4px 12px; border:2px solid #DDD6FE; border-radius:16px; font-size:13px;">${w}</span>`).join('')}
+                    </div>
+                    <div style="display:grid; grid-template-columns:${Object.keys(ex.categories || {}).map(() => '1fr').join(' ')}; gap:12px; margin-top:12px;">
+                        ${Object.keys(ex.categories || {}).map(cat => `<div style="border:2px solid #E5E7EB; border-radius:8px; padding:8px; min-height:60px;">
+                            <div style="font-size:12px; font-weight:700; color:#7C3AED; margin-bottom:4px;">${cat}</div>
+                        </div>`).join('')}
+                    </div>`;
+                }
+                html += '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        function renderVocabulary(el, ws) {
+            const words = ws.words || [];
+            let html = '';
+            words.forEach((w, i) => {
+                html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-family:var(--font-display); font-size:20px; color:#7C3AED; font-weight:700;">${w.word}</span>
+                    <span style="font-size:11px; color:#9CA3AF;">${i + 1}.</span>
+                </div>
+                <p style="font-size:13px; color:#6B7280; margin-bottom:8px;">📖 <strong>Definition:</strong> ${w.definition}</p>
+                <p style="font-size:13px; color:#6B7280; margin-bottom:8px;">💬 <strong>Sentence:</strong> "${w.sentence}"</p>
+                <div style="display:flex; gap:12px;">
+                    <span style="font-size:12px; background:#ECFDF5; padding:3px 10px; border-radius:12px; color:#059669;">✓ ${w.synonym || ''}</span>
+                    <span style="font-size:12px; background:#FEF2F2; padding:3px 10px; border-radius:12px; color:#DC2626;">✗ ${w.antonym || ''}</span>
+                </div>
+                <div style="margin-top:8px;">
+                    <p style="font-size:12px; color:#9CA3AF;">Write your own sentence using this word:</p>
+                    <div style="height:28px; border-bottom:1px dashed #E5E7EB;"></div>
+                </div>
+            </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        // --- PUZZLE RENDERERS ---
+        function renderSudoku(el, ws) {
+            const grid = ws.grid || [];
+            const size = grid.length;
+            const boxSize = size === 4 ? 2 : size === 6 ? 3 : 3;
+            let html = `<div class="puzzle-grid" style="grid-template-columns:repeat(${size},1fr); max-width:${size * 42}px;">`;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const val = grid[r][c];
+                    const classes = ['puzzle-cell'];
+                    if (val !== 0) classes.push('given');
+                    if ((c + 1) % boxSize === 0 && c < size - 1) classes.push('thick-right');
+                    if ((r + 1) % boxSize === 0 && r < size - 1) classes.push('thick-bottom');
+                    html += `<div class="${classes.join(' ')}">${val || ''}</div>`;
+                }
+            }
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderWordSearch(el, ws) {
+            const grid = ws.grid || [];
+            const size = ws.size || grid.length;
+            const words = ws.words || [];
+            let html = `<div class="wordsearch-grid" style="grid-template-columns:repeat(${size},1fr); max-width:${size * 30}px;">`;
+            for (let r = 0; r < grid.length; r++) {
+                for (let c = 0; c < (grid[r]?.length || 0); c++) {
+                    html += `<div class="wordsearch-cell">${grid[r][c]}</div>`;
+                }
+            }
+            html += `</div><div class="word-bank">${words.map(w => `<span class="word-bank-item">${w}</span>`).join('')}</div>`;
+            el.innerHTML = html;
+        }
+
+        function renderCrossword(el, ws) {
+            const grid = ws.grid || [];
+            const size = ws.size || grid.length;
+            const clues = ws.clues || { across: [], down: [] };
+            let html = `<div class="puzzle-grid" style="grid-template-columns:repeat(${size},1fr); max-width:${size * 40}px;">`;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = grid[r]?.[c];
+                    if (cell === null || cell === undefined) {
+                        html += '<div class="puzzle-cell" style="background:#1F2937;"></div>';
+                    } else {
+                        html += `<div class="puzzle-cell" style="font-size:10px; color:#9CA3AF; align-items:flex-start; justify-content:flex-start; padding:3px;">${cell || ''}</div>`;
+                    }
+                }
+            }
+            html += '</div>';
+            html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:16px;">';
+            html += `<div><h4 style="font-family:var(--font-display); font-size:14px; color:#7C3AED; margin-bottom:8px;">ACROSS</h4>
+            ${(clues.across || []).map(c => `<p style="font-size:12px; margin-bottom:3px;"><strong>${c.num}.</strong> ${c.clue}</p>`).join('')}</div>`;
+            html += `<div><h4 style="font-family:var(--font-display); font-size:14px; color:#EC4899; margin-bottom:8px;">DOWN</h4>
+            ${(clues.down || []).map(c => `<p style="font-size:12px; margin-bottom:3px;"><strong>${c.num}.</strong> ${c.clue}</p>`).join('')}</div>`;
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderCryptogram(el, ws) {
+            const message = ws.message || '';
+            const cipher = ws.cipher || {};
+            const hint = ws.hint || '';
+            let html = `<div style="background:#F3F4F6; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+            <strong style="font-size:12px;">🔑 Hint:</strong> <span style="font-size:13px;">${hint}</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">`;
+            for (const char of message) {
+                if (char === ' ') {
+                    html += '<div style="width:16px;"></div>';
+                } else {
+                    const code = cipher[char] || '?';
+                    html += `<div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+                    <span style="font-family:var(--font-display); font-size:11px; color:#EC4899; font-weight:600;">${code}</span>
+                    <div style="width:26px; height:30px; border:2px solid #DDD6FE; border-radius:4px; background:white;"></div>
+                </div>`;
+                }
+            }
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderMaze(el, ws) { renderGenericList(el, ws, 'maze'); }
+        function renderLogicGrid(el, ws) {
+            const scenario = ws.scenario || '';
+            const clues = ws.clues || [];
+            let html = `<div style="background:#EDE9FE; padding:16px; border-radius:12px; margin-bottom:16px;">
+            <p style="font-size:14px; color:#5B21B6; line-height:1.6;">${scenario}</p>
+        </div>
+        <div style="font-family:var(--font-display); font-size:14px; color:#7C3AED; margin-bottom:8px;">📌 Clues:</div>`;
+            clues.forEach((clue, i) => {
+                html += `<p style="font-size:14px; margin-bottom:6px; padding:8px 12px; background:#F9FAFB; border-radius:6px;">${i + 1}. ${clue}</p>`;
+            });
+            // Grid
+            const chars = ws.characters || [];
+            const options = ws.options || {};
+            const categories = Object.keys(options);
+            if (chars.length && categories.length) {
+                html += `<div style="margin-top:16px; overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr><th style="border:1px solid #E5E7EB; padding:6px;"></th>
+                        ${categories.flatMap(cat => (options[cat] || []).map(opt => `<th style="border:1px solid #E5E7EB; padding:6px; background:#F3F4F6;">${opt}</th>`)).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${chars.map(ch => `<tr><td style="border:1px solid #E5E7EB; padding:6px; font-weight:600; background:#F3F4F6;">${ch}</td>
+                            ${categories.flatMap(cat => (options[cat] || []).map(() => '<td style="border:1px solid #E5E7EB; padding:6px; text-align:center;"></td>')).join('')}
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+            }
+            html += `<div style="margin-top:16px;"><p style="font-size:13px; color:#6B7280;">Write your answers:</p>
+            ${(chars || []).map(c => `<p style="font-size:14px; margin-bottom:4px;">${c} → <span class="math-answer-blank" style="width:80px;"></span></p>`).join('')}
+        </div>`;
+            el.innerHTML = html;
+        }
+
+        // --- EARLY LEARNING RENDERERS ---
+        function renderAlphabetTrace(el, ws) {
+            const letters = ws.letters || [];
+            let html = '<div style="display:grid; gap:20px;">';
+            letters.forEach(item => {
+                html += `<div style="border:2px solid #E5E7EB; border-radius:16px; padding:16px; display:grid; grid-template-columns:auto 1fr; gap:16px;">
+                <div style="text-align:center; min-width:80px;">
+                    <div style="font-family:var(--font-display); font-size:48px; color:#7C3AED; font-weight:700; line-height:1;">${item.upper}${item.lower}</div>
+                    <div style="font-size:20px; margin-top:4px;">${item.emoji || ''}</div>
+                    <div style="font-size:12px; color:#6B7280;">${item.word || ''}</div>
+                </div>
+                <div>
+                    <div style="font-family:var(--font-display); font-size:32px; color:#E5E7EB; letter-spacing:20px;">
+                        ${item.upper} ${item.upper} ${item.upper} ${item.upper}
+                    </div>
+                    <div style="height:32px; border-bottom:1px solid #D1D5DB; position:relative;">
+                        <div style="position:absolute; top:50%; width:100%; border-top:1px dashed #E5E7EB;"></div>
+                    </div>
+                    <div style="font-family:var(--font-display); font-size:32px; color:#E5E7EB; letter-spacing:20px; margin-top:8px;">
+                        ${item.lower} ${item.lower} ${item.lower} ${item.lower}
+                    </div>
+                    <div style="height:32px; border-bottom:1px solid #D1D5DB; position:relative;">
+                        <div style="position:absolute; top:50%; width:100%; border-top:1px dashed #E5E7EB;"></div>
+                    </div>
+                </div>
+            </div>`;
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderNumberTrace(el, ws) {
+            const numbers = ws.numbers || [];
+            let html = '<div class="number-trace-grid">';
+            numbers.forEach(item => {
+                html += `<div class="number-trace-box">
+                <div class="number-trace-big solid">${item.number}</div>
+                <div class="number-trace-objects">${item.objects || ''}</div>
+                <div style="font-size:11px; color:#6B7280; margin-top:4px;">${item.word || ''}</div>
+                <div style="font-family:var(--font-display); font-size:24px; color:#E5E7EB; letter-spacing:8px; margin-top:8px;">
+                    ${String(item.number).repeat(3)}
+                </div>
+                <div style="height:24px; border-bottom:1px dashed #E5E7EB;"></div>
+            </div>`;
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderColorShape(el, ws) { renderGenericList(el, ws, 'colors & shapes'); }
+        function renderCutPaste(el, ws) {
+            const categories = ws.categories || [];
+            const items = ws.items || [];
+            let html = `<div style="font-family:var(--font-display); font-size:14px; color:#7C3AED; margin-bottom:12px;">✂️ Cut out the items below and paste them in the correct box.</div>`;
+            // Category boxes
+            html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">';
+            categories.forEach(cat => {
+                html += `<div style="border:2px dashed #DDD6FE; border-radius:12px; padding:16px; min-height:120px;">
+                <div style="font-family:var(--font-display); font-size:14px; color:#7C3AED; text-align:center; margin-bottom:8px;">${cat}</div>
+            </div>`;
+            });
+            html += '</div>';
+            // Cut items
+            html += '<div style="border-top:2px dashed #E5E7EB; padding-top:16px;">';
+            html += '<div style="font-size:11px; color:#9CA3AF; margin-bottom:8px;">✂️ — — — — — — CUT HERE — — — — — — ✂️</div>';
+            html += '<div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">';
+            items.forEach(item => {
+                html += `<div style="border:2px solid #E5E7EB; border-radius:8px; padding:8px 14px; text-align:center;">
+                <div style="font-size:24px;">${item.emoji || ''}</div>
+                <div style="font-size:12px;">${item.name}</div>
+            </div>`;
+            });
+            html += '</div></div>';
+            el.innerHTML = html;
+        }
+
+        function renderPatterns(el, ws) {
+            const patterns = ws.patterns || [];
+            let html = '';
+            patterns.forEach((p, i) => {
+                html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:14px;">
+                <div style="font-size:11px; color:#9CA3AF; font-weight:700; margin-bottom:6px;">${i + 1}. What comes next?</div>
+                <div style="display:flex; gap:8px; align-items:center; font-size:28px; flex-wrap:wrap;">
+                    ${(p.sequence || []).map(s => `<span>${s}</span>`).join('')}
+                    <span style="font-size:20px; color:#9CA3AF;">→</span>
+                    <div style="width:40px; height:40px; border:2px dashed #7C3AED; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; color:#9CA3AF;">?</div>
+                </div>
+                <div style="font-size:11px; color:#9CA3AF; margin-top:4px;">Pattern type: ${p.type || 'AB'}</div>
+            </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        // --- OTHER RENDERERS ---
+        function renderScience(el, ws) { renderGenericContent(el, ws); }
+        function renderSocialStudies(el, ws) { renderGenericContent(el, ws); }
+        function renderLifeSkills(el, ws) { renderGenericContent(el, ws); }
+
+        function renderMorningWork(el, ws) {
+            const mathProblems = ws.mathProblems || [];
+            const elaProblems = ws.elaProblems || [];
+            let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">';
+            // Math section
+            html += `<div style="border:2px solid #DDD6FE; border-radius:12px; padding:16px;">
+            <div style="font-family:var(--font-display); font-size:14px; color:#7C3AED; margin-bottom:12px;">📐 Math</div>`;
+            mathProblems.forEach((p, i) => {
+                html += `<div style="margin-bottom:10px; padding:8px; background:#F9FAFB; border-radius:6px;">
+                <p style="font-size:13px;">${i + 1}. ${p.problem}</p>
+            </div>`;
+            });
+            html += '</div>';
+            // ELA section
+            html += `<div style="border:2px solid #FBCFE8; border-radius:12px; padding:16px;">
+            <div style="font-family:var(--font-display); font-size:14px; color:#EC4899; margin-bottom:12px;">📖 ELA</div>`;
+            elaProblems.forEach((p, i) => {
+                html += `<div style="margin-bottom:10px; padding:8px; background:#F9FAFB; border-radius:6px;">
+                <p style="font-size:13px;">${i + 1}. ${p.problem}</p>
+            </div>`;
+            });
+            html += '</div></div>';
+            el.innerHTML = html;
+        }
+
+        function renderNoPrep(el, ws) {
+            const sections = ws.sections || [];
+            let html = '';
+            sections.forEach(sec => {
+                const borderColor = sec.type === 'math' ? '#DDD6FE' : sec.type === 'ela' ? '#FBCFE8' : '#BBF7D0';
+                html += `<div style="border:2px solid ${borderColor}; border-radius:12px; padding:16px; margin-bottom:14px;">
+                <div style="font-family:var(--font-display); font-size:14px; color:#374151; margin-bottom:8px;">${sec.title || ''}</div>`;
+                if (sec.problems) {
+                    sec.problems.forEach((p, i) => {
+                        html += `<p style="font-size:14px; margin-bottom:4px;">${i + 1}. ${p.expression || p.problem || ''} = <span class="math-answer-blank" style="width:40px;"></span></p>`;
+                    });
+                }
+                if (sec.activity) {
+                    html += `<p style="font-size:14px; margin-bottom:8px;">${sec.activity}</p>
+                    <div style="height:28px; border-bottom:1px dashed #E5E7EB;"></div>
+                    <div style="height:28px; border-bottom:1px dashed #E5E7EB;"></div>`;
+                }
+                if (sec.problem) {
+                    html += `<p style="font-size:14px;">${sec.problem}</p>
+                    <p style="margin-top:6px;">Answer: <span class="math-answer-blank" style="width:60px;"></span></p>`;
+                }
+                html += '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        function renderMeasurement(el, ws) {
+            const problems = ws.problems || ws.exercises || [];
+            let html = '<div style="display:grid; gap:16px;">';
+            problems.forEach((p, i) => {
+                html += `<div class="math-problem" style="padding:16px; text-align:left;">
+                    <div class="math-problem-num">${i + 1}.</div>`;
+                if (p.type === 'ruler' || p.object) {
+                    html += `<p style="font-size:15px;">Measure the length of the <strong>${p.object}</strong>:</p>
+                        <div style="margin:12px 0; padding:10px; background:#F9FAFB; border:1px dashed #D1D5DB; border-radius:6px; font-size:13px;">
+                            📏 Ruler simulation (${p.unit || 'inches'})
+                        </div>
+                        <p>Length: <span class="math-answer-blank" style="width:60px;"></span> ${p.unit || 'in'}</p>`;
+                } else if (p.type === 'convert' || (p.from && p.to)) {
+                    html += `<p style="font-size:15px;">Convert <strong>${p.value || 1} ${p.from}</strong> to <strong>${p.to}</strong>:</p>
+                        <p style="margin-top:8px;">Answer: <span class="math-answer-blank" style="width:80px;"></span> ${p.to}</p>`;
+                } else {
+                    const text = p.problem || p.question || p.instruction || (typeof p === 'string' ? p : 'Solve the measurement problem.');
+                    html += `<p style="font-size:14px;">${text}</p>
+                        <p style="margin-top:8px;">Answer: <span class="math-answer-blank" style="width:100px;"></span></p>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderGeometry(el, ws) {
+            const problems = ws.problems || ws.exercises || [];
+            let html = '<div style="display:grid; gap:16px;">';
+            problems.forEach((p, i) => {
+                html += `<div class="math-problem" style="padding:16px; text-align:left;">
+                    <div class="math-problem-num">${i + 1}.</div>`;
+                if (p.type === 'identify' || p.shape) {
+                    html += `<p style="font-size:15px; margin-bottom:8px;">Identify the shape and fill in its properties:</p>
+                        <div style="display:flex; align-items:center; gap:20px; margin:10px 0;">
+                            <div style="font-size:18px; font-weight:700; color:#7C3AED; padding:10px 20px; background:#EDE9FE; border-radius:8px; border:1px solid #DDD6FE;">
+                                🔷 ${p.shape ? p.shape.toUpperCase() : 'SHAPE'}
+                            </div>
+                            <div style="font-size:13px; color:#4B5563; line-height:1.6;">
+                                ${p.sides !== undefined ? `<div>• Number of sides: <strong>${p.sides}</strong></div>` : ''}
+                                ${p.vertices !== undefined ? `<div>• Number of vertices: <strong>${p.vertices}</strong></div>` : ''}
+                            </div>
+                        </div>
+                        <p style="margin-top:8px;">Answer / Shape Name: <span class="math-answer-blank" style="width:140px;"></span></p>`;
+                } else if (p.type === 'area' || p.area) {
+                    html += `<p style="font-size:15px; margin-bottom:8px;">Find the area of the <strong>${p.shape || 'rectangle'}</strong>:</p>
+                        <p style="font-size:14px; color:#4B5563;">Length = ${p.length || 5} ${p.unit || 'cm'}, Width = ${p.width || 3} ${p.unit || 'cm'}</p>
+                        <p style="margin-top:8px;">Area: <span class="math-answer-blank" style="width:80px;"></span> ${p.unit ? p.unit + '²' : ''}</p>`;
+                } else if (p.type === 'perimeter' || p.perimeter) {
+                    html += `<p style="font-size:15px; margin-bottom:8px;">Find the perimeter of the <strong>${p.shape || 'shape'}</strong>:</p>
+                        <p style="font-size:14px; color:#4B5563;">Side length = ${p.side || 4} ${p.unit || 'cm'}</p>
+                        <p style="margin-top:8px;">Perimeter: <span class="math-answer-blank" style="width:80px;"></span> ${p.unit || ''}</p>`;
+                } else {
+                    const text = p.problem || p.question || p.instruction || (typeof p === 'string' ? p : 'Complete the geometry exercise.');
+                    html += `<p style="font-size:14px;">${text}</p>
+                        <p style="margin-top:8px;">Answer: <span class="math-answer-blank" style="width:100px;"></span></p>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        // Generic renderers for less-structured content
+        function renderGenericList(el, ws, label) {
+            const problems = ws.problems || ws.exercises || [];
+            let html = `<div style="display:grid; gap:12px;">`;
+            problems.forEach((p, i) => {
+                const text = typeof p === 'string' ? p : (p.question || p.problem || p.instruction || p.prompt || p.scenario || p.title || `Exercise ${i + 1}`);
+                html += `<div style="border:1px solid #E5E7EB; border-radius:8px; padding:14px; position:relative;">
+                <span style="font-size:11px; color:#9CA3AF; font-weight:700;">${i + 1}.</span>
+                <p style="font-size:14px; margin-top:4px; line-height:1.6;">${text}</p>
+                <p style="margin-top:8px;">Answer: <span class="math-answer-blank" style="width:100px;"></span></p>
+            </div>`;
+            });
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function renderGenericContent(el, ws) {
+            const content = ws.content || ws.problems || ws.exercises || [];
+            let html = '';
+            if (!Array.isArray(content) || content.length === 0) {
+                el.innerHTML = '<p style="color:#9CA3AF; text-align:center;">No activity items generated.</p>';
+                return;
+            }
+
+            content.forEach((item, i) => {
+                if (typeof item === 'string') {
+                    html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">
+                        <p style="font-size:14px; font-weight:600;">${i + 1}. ${item}</p>
+                        <div style="height:28px; border-bottom:1px dashed #E5E7EB; margin-top:8px;"></div>
+                    </div>`;
+                    return;
+                }
+
+                html += `<div style="border:1px solid #E5E7EB; border-radius:12px; padding:16px; margin-bottom:12px;">`;
+
+                if (item.type === 'multiple_choice' || (item.options && item.options.length)) {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. ${item.question || item.prompt || 'Choose the correct answer:'}</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                            ${(item.options || []).map(opt => `<div style="padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; font-size:13px; background:#F9FAFB;">⚪ ${opt}</div>`).join('')}
+                        </div>`;
+                } else if (item.type === 'true_false') {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. ${item.statement || item.question}</p>
+                        <div style="display:flex; gap:20px; margin-top:8px; font-size:14px;">
+                            <span>[ &nbsp; ] True</span>
+                            <span>[ &nbsp; ] False</span>
+                        </div>`;
+                } else if (item.type === 'sequence' || item.steps) {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. ${item.instruction || 'Put in order:'}</p>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+                            ${(item.steps || []).map(s => `<span style="padding:6px 14px; border:2px solid #DDD6FE; border-radius:8px; font-size:13px; background:#FAF5FF;">${s}</span>`).join('')}
+                        </div>`;
+                } else if (item.type === 'label' || item.labels) {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. Label the ${item.diagram || 'diagram'}:</p>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+                            ${(item.labels || []).map(l => `<span style="padding:4px 12px; background:#EDE9FE; border-radius:12px; font-size:12px; color:#7C3AED;">${l}</span>`).join('')}
+                        </div>`;
+                } else if (item.type === 'match' || item.pairs) {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. Match each item:</p>
+                        ${(item.pairs || []).map((p, j) => `<p style="font-size:14px; margin-bottom:6px;">${j + 1}. ${p[0]} → <span class="math-answer-blank" style="width:120px;"></span></p>`).join('')}`;
+                } else if (item.type === 'fill_blank' || item.sentences) {
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. Fill in the blanks:</p>
+                        ${(item.sentences || []).map((s, j) => `<p style="font-size:14px; line-height:2; margin-bottom:4px;">${j + 1}. ${s}</p>`).join('')}`;
+                } else {
+                    const text = item.question || item.problem || item.instruction || item.title || item.text || item.scenario || item.description || 'Answer the question:';
+                    html += `<p style="font-size:14px; font-weight:600; margin-bottom:8px;">${i + 1}. ${text}</p>
+                        <div style="height:28px; border-bottom:1px dashed #E5E7EB; margin-top:8px;"></div>`;
+                }
+                html += '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        // ================================================
+        // ANSWER KEY RENDERER
+        // ================================================
+        function renderAnswerKey(ws, idx, type) {
+            const typeInfo = getTypeInfo(type);
+            let content = '';
+
+            // 1. Math problems (Addition, Multiplication, Fact Fluency)
+            if (ws.problems && Array.isArray(ws.problems)) {
+                const ans = ws.problems.map((p, i) => {
+                    const a = p.answer !== undefined ? p.answer : p.total || p.change || p.length || p.area || p.perimeter || p.elapsed;
+                    return `<b>${i + 1}.</b> ${a !== undefined ? a : 'See worksheet'}`;
+                });
+                content = ans.join(' &nbsp;|&nbsp; ');
+            }
+            // 2. Sudoku solution
+            else if (type === 'sudoku' && ws.solution) {
+                content = '<div style="font-family:monospace; font-size:10px; line-height:1.3; background:#F3F4F6; padding:6px; border-radius:4px;">' +
+                    ws.solution.map(row => row.join(' ')).join('<br>') + '</div>';
+            }
+            // 3. Word Search
+            else if (type === 'wordSearch' && ws.words) {
+                content = '<b>Words:</b> ' + (ws.words || []).join(', ');
+            }
+            // 4. Crossword
+            else if (type === 'crossword' && (ws.solution || ws.clues)) {
+                if (ws.clues) {
+                    const acrossAns = (ws.clues.across || []).map(c => `A${c.num}: ${c.answer || '—'}`).join(', ');
+                    const downAns = (ws.clues.down || []).map(c => `D${c.num}: ${c.answer || '—'}`).join(', ');
+                    content = `<b>Across:</b> ${acrossAns}<br><b>Down:</b> ${downAns}`;
+                } else if (ws.solution) {
+                    content = '<div style="font-family:monospace; font-size:10px;">' + ws.solution.map(r => r.join(' ')).join('<br>') + '</div>';
+                }
+            }
+            // 5. Cryptogram
+            else if (type === 'cryptogram' && ws.message) {
+                content = `<b>Decoded Message:</b> "${ws.message}"`;
+            }
+            // 6. Reading Comp
+            else if (ws.questions && Array.isArray(ws.questions)) {
+                content = ws.questions.map((q, i) => `<b>Q${i + 1}:</b> ${q.answer || '—'}`).join('<br>');
+            }
+            // 7. Spelling
+            else if (type === 'spelling' && ws.words) {
+                content = `<b>Spelling List Key:</b> ${ws.words.join(', ')}`;
+            }
+            // 8. Sight Words
+            else if (type === 'sightWords' && (ws.words || ws.sightWords)) {
+                const list = ws.words || ws.sightWords;
+                content = `<b>Target Sight Words:</b> ${Array.isArray(list) ? list.join(', ') : list}`;
+            }
+            // 9. Phonics
+            else if (type === 'phonics' && (ws.words || ws.focus)) {
+                content = `<b>Focus Sound (${ws.focus || ''}):</b> ${(ws.words || []).join(', ')}`;
+            }
+            // 10. Vocabulary
+            else if (type === 'vocabulary' && ws.words) {
+                content = ws.words.map((w, i) => `<b>${i + 1}. ${w.word}:</b> ${w.definition || w.synonym || '—'}`).join('<br>');
+            }
+            // 11. Grammar
+            else if (ws.exercises && Array.isArray(ws.exercises)) {
+                content = ws.exercises.map((ex, i) => {
+                    const ans = ex.answers || ex.answer || (ex.categories ? JSON.stringify(ex.categories) : '—');
+                    return `<b>${i + 1}.</b> ${Array.isArray(ans) ? ans.join(', ') : ans}`;
+                }).join('<br>');
+            }
+            // 12. Logic Grid
+            else if (ws.solution) {
+                content = typeof ws.solution === 'object' ? Object.entries(ws.solution).map(([k, v]) => `<b>${k}:</b> ${v}`).join(' | ') : ws.solution;
+            }
+            // 13. Morning Work
+            else if (type === 'morningWork') {
+                const math = (ws.mathProblems || []).map((p, i) => `M${i + 1}: ${p.answer || '—'}`).join(', ');
+                const ela = (ws.elaProblems || []).map((p, i) => `E${i + 1}: ${p.answer || '—'}`).join(', ');
+                content = `<b>Math:</b> ${math}<br><b>ELA:</b> ${ela}`;
+            }
+            // 14. Tracing & Early Learning
+            else if (type === 'alphabetTrace' || type === 'numberTrace' || type === 'handwriting') {
+                content = `<b>Practice Page Key:</b> Standard letter/number tracing formations.`;
+            }
+            // 15. Generic content / Content array (Science, Social Studies, Life Skills, etc.)
+            else if (ws.content && Array.isArray(ws.content)) {
+                const itemKeys = ws.content.map((item, i) => {
+                    const ans = item.answer || item.answers || (item.pairs ? item.pairs.map(p => `${p[0]}→${p[1]}`).join(', ') : null);
+                    return ans ? `<b>${i + 1}.</b> ${Array.isArray(ans) ? ans.join(', ') : ans}` : null;
+                }).filter(Boolean);
+                content = itemKeys.length ? itemKeys.join('<br>') : `<b>Answer Key:</b> Reference lesson objectives for Grade ${DOM.gradeLevel.value} ${typeInfo.name}.`;
+            }
+            // Fallback
+            else {
+                content = `<b>Answer Key:</b> Standard solution key for Grade ${DOM.gradeLevel.value} ${typeInfo.name}.`;
+            }
+
+            return `<div style="border:1px solid #E5E7EB; border-radius:8px; padding:10px;">
+            <div style="font-family:var(--font-display); font-size:12px; color:#10B981; margin-bottom:4px;">
+                #${idx + 1} — ${ws.title || typeInfo.name}
+            </div>
+            <div style="font-size:11px; line-height:1.5; color:#374151;">${content}</div>
+        </div>`;
+        }
+
+        // ================================================
+        // DIRECTIONS PER TYPE
+        // ================================================
+        function getDirections(type) {
+            const dirs = {
+                addition: 'Solve each addition or subtraction problem. Show your work if needed. Write the answer on the line.',
+                multiplication: 'Solve each multiplication or division problem. Write the answer on the line.',
+                placeValue: 'Complete each place value activity. Write your answers clearly.',
+                fractions: 'Complete each fraction activity. Use the visual models to help you.',
+                money: 'Solve each money problem. Count carefully and write your answer.',
+                time: 'Read the clock and write the time, or draw the hands to show the given time.',
+                measurement: 'Complete each measurement activity. Use the correct units.',
+                geometry: 'Complete each geometry activity. Count sides, measure angles, or calculate area/perimeter.',
+                factFluency: 'Solve as many problems as you can before time runs out. Write the answer quickly!',
+                wordProblems: 'Read each word problem carefully. Show your work in the space provided and write your answer on the line.',
+                sightWords: 'Practice each sight word. Trace it, write it, and use it in a sentence.',
+                phonics: 'Look at the focus sound. Complete each activity to practice the sound.',
+                readingComp: 'Read the passage carefully. Then answer the questions below.',
+                handwriting: 'Trace the letters carefully. Then practice writing them on your own on the lines below.',
+                spelling: 'Practice spelling each word using the activities provided.',
+                grammar: 'Complete each grammar activity. Read the directions for each section carefully.',
+                vocabulary: 'Learn each vocabulary word. Read the definition and example sentence, then write your own.',
+                sudoku: 'Fill in the grid so every row, column, and box contains each number exactly once. No repeats!',
+                wordSearch: 'Find and circle all the hidden words. Words can go across, down, or diagonally — forwards or backwards.',
+                crossword: 'Read each clue and fill in the answer in the crossword grid. Write one letter per box.',
+                cryptogram: 'Use the code key to decode the secret message. Each symbol stands for a different letter.',
+                mazes: 'Solve the math problem at each step. The correct answer shows you which way to go!',
+                logicGrid: 'Read the clues carefully. Use the logic grid to figure out the answer. Mark ✓ for yes and ✗ for no.',
+                alphabetTrace: 'Trace each letter carefully. Start at the dot and follow the arrows. Then practice on your own.',
+                numberTrace: 'Trace each number. Count the objects. Then practice writing the number on your own.',
+                colorShape: 'Follow the directions for each activity. Color, match, or identify the shapes.',
+                cutPaste: 'Cut out the items at the bottom. Sort them into the correct category and paste them in the right box.',
+                patterns: 'Look at the pattern. Figure out what comes next and draw or write it in the box.',
+                science: 'Complete each science activity. Read the directions carefully.',
+                socialStudies: 'Complete each social studies activity.',
+                lifeSkills: 'Practice these important life skills. Follow the directions for each activity.',
+                morningWork: 'Complete the math problems on the left and the ELA problems on the right. Work quietly and do your best!',
+                noPrep: 'Complete each section. This is independent practice — do your best!'
+            };
+            return dirs[type] || 'Complete each activity. Read the directions carefully.';
+        }
+
+        // ================================================
+        // SEO GENERATOR
+        // ================================================
+        async function generateSEO() {
+            if (APP.worksheets.length === 0) {
+                showToast('Please generate worksheets first.', 'error');
+                return;
+            }
+            showLoading('Generating TPT SEO Listing...', 'Analyzing market & keywords');
+            try {
+                const type = APP.selectedType;
+                const typeInfo = getTypeInfo(type);
+                const grade = DOM.gradeLevel.value;
+                const count = APP.worksheets.length;
+                const diff = DOM.difficulty.value;
+
+                const prompt = `You are a top-performing TPT (Teachers Pay Teachers) seller with expertise in SEO. Create a complete, optimized product listing.
+
+Product: ${typeInfo.name} Worksheets
+Grade: ${grade}
+Difficulty: ${diff}
+Pages: ${count} worksheets + answer keys
+Format: Printable PDF, US Letter
+Category: ${getCategoryForType(type)}
+
+Generate JSON with these fields:
+{
+    "title": "SEO-optimized title following the pattern: [Primary Skill] [Resource Type] [Grade] [Feature/Differentiator]. Max 80 characters. Example: 'Sight Words Practice Worksheets Kindergarten & 1st Grade Sight Word Activities'",
+    "description": "Full TPT product description (400-600 words). Must include: 1) Attention-grabbing opening, 2) ⭐ What's Included section with bullets, 3) ✅ Skills Covered, 4) 📋 How to Use (morning work, centers, homework, early finishers), 5) 💡 Differentiation tips, 6) 📁 File Details (format, pages, answer keys), 7) 🏷️ Natural keyword integration, 8) ⚠️ Terms of Use. Write in natural, engaging American English.",
+    "primaryKeywords": ["5 high-volume keywords that teachers search for"],
+    "secondaryKeywords": ["5 more long-tail keywords"],
+    "grades": "Grade levels as listed on TPT (e.g., Kindergarten, 1st Grade)",
+    "subject": "Subject area (e.g., Math, English Language Arts)",
+    "resourceType": "Resource type (e.g., Worksheets, Activities, Printables)",
+    "price": "Market-appropriate USD price based on page count and grade",
+    "standards": "Relevant CCSS standards codes",
+    "teachingDuration": "Estimated teaching duration",
+    "tags": ["10-15 TPT tags for maximum discoverability"]
+}
+
+IMPORTANT: Title must follow real TPT top-seller patterns. Description must be comprehensive and keyword-rich but natural-sounding.
+Return ONLY valid JSON, no markdown.`;
+
+                const response = await callGemini(prompt);
+                let jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                const seoData = JSON.parse(jsonStr);
+                APP.seoData = seoData;
+
+                // Populate fields
+                document.getElementById('seoTitle').value = seoData.title || '';
+                document.getElementById('seoDescription').value = seoData.description || '';
+                document.getElementById('seoGrades').value = seoData.grades || '';
+                document.getElementById('seoSubject').value = seoData.subject || '';
+                document.getElementById('seoPrice').value = seoData.price || '';
+                document.getElementById('seoResourceType').value = seoData.resourceType || '';
+                document.getElementById('seoStandards').value = seoData.standards || '';
+
+                // Keywords
+                const kwContainer = document.getElementById('seoKeywords');
+                kwContainer.innerHTML = (seoData.primaryKeywords || []).map(kw => `<span class="seo-tag">${kw}</span>`).join('') +
+                    (seoData.secondaryKeywords || []).map(kw => `<span class="seo-tag" style="opacity:0.7;">${kw}</span>`).join('');
+
+                // Tags
+                const tagContainer = document.getElementById('seoTagsList');
+                tagContainer.innerHTML = (seoData.tags || []).map(t => `<span class="seo-tag">${t}</span>`).join('');
+
+                DOM.seoContent.style.display = 'block';
+                hideLoading();
+                showToast('SEO listing generated!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast(`Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // ================================================
+        // THUMBNAIL GENERATOR
+        // ================================================
+        function generateThumbnails() {
+            if (APP.worksheets.length === 0) {
+                showToast('Please generate worksheets first.', 'error');
+                return;
+            }
+
+            const type = APP.selectedType;
+            const typeInfo = getTypeInfo(type);
+            const grade = DOM.gradeLevel.value;
+            const count = APP.worksheets.length;
+            const storeName = DOM.storeName.value || 'MathFun Academy';
+            const theme = DOM.worksheetTheme.value;
+
+            const themeColors = {
+                purple: { primary: '#7C3AED', secondary: '#EC4899', bg1: '#7C3AED', bg2: '#A855F7' },
+                blue: { primary: '#3B82F6', secondary: '#06B6D4', bg1: '#2563EB', bg2: '#0EA5E9' },
+                green: { primary: '#10B981', secondary: '#84CC16', bg1: '#059669', bg2: '#22C55E' },
+                orange: { primary: '#F97316', secondary: '#EAB308', bg1: '#EA580C', bg2: '#F59E0B' },
+                pink: { primary: '#EC4899', secondary: '#F43F5E', bg1: '#DB2777', bg2: '#E11D48' }
+            };
+            const tc = themeColors[theme] || themeColors.purple;
+
+            const thumbnailConcepts = [
+                {
+                    title: 'Main Cover',
+                    description: 'Product title, grade badge, key visual',
+                    render: (ctx, s) => {
+                        // Gradient background
+                        const grd = ctx.createLinearGradient(0, 0, s, s);
+                        grd.addColorStop(0, (tc && tc.bg1) ? tc.bg1 : '#7C3AED');
+                        grd.addColorStop(1, (tc && tc.bg2) ? tc.bg2 : '#A855F7');
+                        ctx.fillStyle = grd;
+                        ctx.fillRect(0, 0, s, s);
+
+                        // Decorative circles
+                        ctx.globalAlpha = 0.1;
+                        ctx.fillStyle = 'white';
+                        ctx.beginPath(); ctx.arc(s * 0.2, s * 0.8, s * 0.3, 0, Math.PI * 2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(s * 0.85, s * 0.2, s * 0.25, 0, Math.PI * 2); ctx.fill();
+                        ctx.globalAlpha = 1;
+
+                        // White card
+                        roundRect(ctx, s * 0.1, s * 0.15, s * 0.8, s * 0.65, 30);
+                        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                        ctx.fill();
+
+                        // Emoji
+                        ctx.font = `${s * 0.12}px serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(typeInfo.emoji, s / 2, s * 0.35);
+
+                        // Title
+                        ctx.fillStyle = tc.primary;
+                        ctx.font = `bold ${s * 0.05}px Fredoka, sans-serif`;
+                        wrapText(ctx, typeInfo.name, s / 2, s * 0.48, s * 0.65, s * 0.06);
+
+                        ctx.font = `bold ${s * 0.04}px Fredoka, sans-serif`;
+                        ctx.fillText('Worksheets', s / 2, s * 0.57);
+
+                        // Grade badge
+                        roundRect(ctx, s * 0.3, s * 0.62, s * 0.4, s * 0.08, 20);
+                        ctx.fillStyle = tc.primary;
+                        ctx.fill();
+                        ctx.fillStyle = 'white';
+                        ctx.font = `bold ${s * 0.03}px Fredoka, sans-serif`;
+                        ctx.fillText(`Grade ${grade} • ${count} Pages`, s / 2, s * 0.67);
+
+                        // Store name
+                        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                        ctx.font = `${s * 0.025}px Inter, sans-serif`;
+                        ctx.fillText(`© ${storeName}`, s / 2, s * 0.92);
+                    }
+                },
+                {
+                    title: "What's Included",
+                    description: 'Feature list with page count',
+                    render: (ctx, s) => {
+                        ctx.fillStyle = '#FEFCE8';
+                        ctx.fillRect(0, 0, s, s);
+
+                        // Border
+                        ctx.strokeStyle = tc.primary;
+                        ctx.lineWidth = s * 0.015;
+                        roundRect(ctx, s * 0.04, s * 0.04, s * 0.92, s * 0.92, 30);
+                        ctx.stroke();
+
+                        // Title
+                        ctx.fillStyle = tc.primary;
+                        ctx.font = `bold ${s * 0.045}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText("What's Included", s / 2, s * 0.14);
+
+                        const items = [
+                            `✅  ${count} ${typeInfo.name} Worksheets`,
+                            '✅  Complete Answer Keys',
+                            '✅  Cover Page & Table of Contents',
+                            '✅  US Letter & A4 Sizes',
+                            '✅  Low-Ink B&W Version',
+                            '✅  Credits & Terms of Use'
+                        ];
+
+                        ctx.font = `${s * 0.03}px Inter, sans-serif`;
+                        ctx.fillStyle = '#374151';
+                        ctx.textAlign = 'left';
+                        items.forEach((item, i) => {
+                            ctx.fillText(item, s * 0.15, s * 0.26 + (i * s * 0.09));
+                        });
+
+                        // Footer
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = tc.primary;
+                        ctx.font = `bold ${s * 0.025}px Fredoka, sans-serif`;
+                        ctx.fillText(`${storeName}`, s / 2, s * 0.92);
+                    }
+                },
+                {
+                    title: 'Skills & Features',
+                    description: 'Core skills and difficulty levels',
+                    render: (ctx, s) => {
+                        const grd = ctx.createLinearGradient(0, 0, 0, s);
+                        grd.addColorStop(0, '#FCD34D');
+                        grd.addColorStop(1, '#F59E0B');
+                        ctx.fillStyle = grd;
+                        ctx.fillRect(0, 0, s, s);
+
+                        ctx.fillStyle = '#78350F';
+                        ctx.font = `bold ${s * 0.045}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Skills & Features', s / 2, s * 0.14);
+
+                        const features = [
+                            '🧠  Critical Thinking',
+                            '📊  Problem Solving',
+                            '🎯  5 Difficulty Levels',
+                            '📈  Spiral Review Ready',
+                            '🖨️  Print & Go, No Prep',
+                            '⭐  CCSS Aligned'
+                        ];
+
+                        ctx.font = `${s * 0.03}px Inter, sans-serif`;
+                        ctx.fillStyle = '#451A03';
+                        features.forEach((feat, i) => {
+                            ctx.fillText(feat, s / 2, s * 0.28 + (i * s * 0.09));
+                        });
+
+                        ctx.fillStyle = '#78350F';
+                        ctx.font = `bold ${s * 0.025}px Fredoka, sans-serif`;
+                        ctx.fillText('Perfect for Morning Work • Centers • Homework', s / 2, s * 0.88);
+                    }
+                },
+                {
+                    title: 'Sample Preview',
+                    description: 'Miniature page previews',
+                    render: (ctx, s) => {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, s, s);
+
+                        // Header bar
+                        ctx.fillStyle = tc.primary;
+                        ctx.fillRect(0, 0, s, s * 0.13);
+                        ctx.fillStyle = 'white';
+                        ctx.font = `bold ${s * 0.035}px Fredoka, sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText('📄 Preview Sample Pages', s / 2, s * 0.085);
+
+                        // Mock pages
+                        for (let i = 0; i < 3; i++) {
+                            const x = s * 0.08 + (i * s * 0.3);
+                            const y = s * 0.2;
+                            const w = s * 0.25;
+                            const h = s * 0.55;
+
+                            // Shadow
+                            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                            roundRect(ctx, x + 4, y + 4, w, h, 8);
+                            ctx.fill();
+
+                            // Page
+                            ctx.fillStyle = '#F9FAFB';
+                            roundRect(ctx, x, y, w, h, 8);
+                            ctx.fill();
+                            ctx.strokeStyle = '#E5E7EB';
+                            ctx.lineWidth = 2;
+                            roundRect(ctx, x, y, w, h, 8);
+                            ctx.stroke();
+
+                            // Title line
+                            ctx.fillStyle = tc.primary;
+                            ctx.fillRect(x + 10, y + 12, w * 0.6, 8);
+
+                            // Content lines
+                            ctx.fillStyle = '#E5E7EB';
+                            for (let j = 0; j < 8; j++) {
+                                ctx.fillRect(x + 10, y + 35 + (j * 16), w - 20, 6);
+                            }
+                        }
+
+                        // Footer
+                        ctx.fillStyle = '#6B7280';
+                        ctx.font = `${s * 0.022}px Inter, sans-serif`;
+                        ctx.fillText('Perfect for: Morning Work • Centers • Early Finishers • Homework', s / 2, s * 0.88);
+                        ctx.fillStyle = tc.primary;
+                        ctx.font = `bold ${s * 0.025}px Fredoka, sans-serif`;
+                        ctx.fillText(storeName, s / 2, s * 0.94);
+                    }
+                }
+            ];
+
+            const grid = DOM.thumbnailGrid;
+            grid.innerHTML = '';
+
+            thumbnailConcepts.forEach(concept => {
+                const card = document.createElement('div');
+                card.className = 'thumbnail-card';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'thumbnail-canvas-wrapper';
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 1500;
+                canvas.height = 1500;
+                const ctx = canvas.getContext('2d');
+                concept.render(ctx, 1500);
+
+                wrapper.appendChild(canvas);
+                const info = document.createElement('div');
+                info.className = 'thumbnail-info';
+                info.innerHTML = `<h4>${concept.title}</h4><p>${concept.description} • 1500×1500px</p>`;
+
+                card.appendChild(wrapper);
+                card.appendChild(info);
+                grid.appendChild(card);
+            });
+
+            showToast('4 professional thumbnails generated!', 'success');
+        }
+
+        // Canvas helper: rounded rectangle
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        // Canvas helper: wrap text
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            let lines = [];
+            words.forEach(word => {
+                const testLine = line + word + ' ';
+                if (ctx.measureText(testLine).width > maxWidth && line) {
+                    lines.push(line.trim());
+                    line = word + ' ';
+                } else {
+                    line = testLine;
+                }
+            });
+            lines.push(line.trim());
+            lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+        }
+
+        // ================================================
+        // EXPORT FUNCTIONS
+        // ================================================
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+        }
+
+        async function exportPDF(exportType) {
+            if (APP.worksheets.length === 0) {
+                showToast('Please generate worksheets first.', 'error');
+                return;
+            }
+
+            showLoading(`Exporting ${exportType}...`, 'Rendering pages...');
+            DOM.progressBar.style.display = 'block';
+            DOM.progressFill.style.width = '5%';
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const paperSize = DOM.paperSize.value;
+                const format = paperSize === 'a4' ? 'a4' : 'letter';
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format });
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+
+                const pages = DOM.previewContainer.querySelectorAll('.ws-page');
+                let isFirst = true;
+
+                for (let i = 0; i < pages.length; i++) {
+                    DOM.loadingSub.textContent = `Rendering page ${i + 1} of ${pages.length}...`;
+
+                    const canvas = await html2canvas(pages[i], {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        width: pages[i].offsetWidth,
+                        height: pages[i].offsetHeight,
+                        windowWidth: pages[i].offsetWidth,
+                        windowHeight: pages[i].offsetHeight
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                    if (!isFirst) pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+                    isFirst = false;
+
+                    canvas.width = 0;
+                    canvas.height = 0;
+
+                    DOM.progressFill.style.width = `${((i + 1) / pages.length) * 90}%`;
+                    await new Promise(r => setTimeout(r, 50));
+                }
+
+                const storeName = DOM.storeName.value || 'MathFun Academy';
+                const typeInfo = getTypeInfo(APP.selectedType);
+                const filename = `${storeName.replace(/\s+/g, '_')}_${typeInfo.name.replace(/\s+/g, '_')}_Grade${DOM.gradeLevel.value}_${exportType}.pdf`;
+
+                pdf.save(filename);
+
+                DOM.progressFill.style.width = '100%';
+                hideLoading();
+                showToast(`PDF exported: ${filename}`, 'success');
+                setTimeout(() => { DOM.progressBar.style.display = 'none'; }, 1000);
+            } catch (error) {
+                hideLoading();
+                showToast(`Export error: ${error.message}`, 'error');
+                DOM.progressBar.style.display = 'none';
+                console.error(error);
+            }
+        }
+
+        async function exportImages() {
+            if (APP.worksheets.length === 0) {
+                showToast('Please generate worksheets first.', 'error');
+                return;
+            }
+
+            showLoading('Exporting images...', 'Rendering pages...');
+            try {
+                const zip = new JSZip();
+                const pages = DOM.previewContainer.querySelectorAll('.ws-page');
+
+                for (let i = 0; i < pages.length; i++) {
+                    DOM.loadingSub.textContent = `Rendering page ${i + 1} of ${pages.length}...`;
+                    const canvas = await html2canvas(pages[i], {
+                        scale: 3, // High resolution
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        width: pages[i].offsetWidth,
+                        height: pages[i].offsetHeight
+                    });
+
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    zip.file(`Page-${i + 1}.png`, blob);
+                    canvas.width = 0;
+                    canvas.height = 0;
+                    await new Promise(r => setTimeout(r, 50));
+                }
+
+                const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+                const storeName = DOM.storeName.value || 'MathFun Academy';
+                downloadBlob(zipBlob, `${storeName.replace(/\s+/g, '_')}_Images.zip`);
+
+                hideLoading();
+                showToast('Images exported as ZIP!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast(`Export error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function exportZIP() {
+            if (APP.worksheets.length === 0) {
+                showToast('Please generate worksheets first.', 'error');
+                return;
+            }
+
+            showLoading('Creating TPT Upload Package...', 'Bundling files...');
+
+            try {
+                const zip = new JSZip();
+                const storeName = DOM.storeName.value || 'MathFun Academy';
+                const typeInfo = getTypeInfo(APP.selectedType);
+                const { jsPDF } = window.jspdf;
+                const paperSize = DOM.paperSize.value;
+                const format = paperSize === 'a4' ? 'a4' : 'letter';
+
+                // --- Worksheet PDF ---
+                DOM.loadingSub.textContent = 'Creating worksheet PDF...';
+                const wsPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format });
+                const pw = wsPdf.internal.pageSize.getWidth();
+                const ph = wsPdf.internal.pageSize.getHeight();
+                const pages = DOM.previewContainer.querySelectorAll('.ws-page');
+                let first = true;
+
+                for (let i = 0; i < pages.length; i++) {
+                    DOM.loadingSub.textContent = `Rendering page ${i + 1}/${pages.length}...`;
+                    const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, logging: false, backgroundColor: '#fff', width: pages[i].offsetWidth, height: pages[i].offsetHeight });
+                    if (!first) wsPdf.addPage();
+                    wsPdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pw, ph);
+                    first = false;
+                    canvas.width = 0; canvas.height = 0;
+                    await new Promise(r => setTimeout(r, 30));
+                }
+                zip.file('Worksheet.pdf', wsPdf.output('arraybuffer'));
+
+                // --- Thumbnails ---
+                DOM.loadingSub.textContent = 'Generating & adding thumbnails...';
+                let thumbCanvases = DOM.thumbnailGrid.querySelectorAll('canvas');
+                if (thumbCanvases.length === 0) {
+                    generateThumbnails();
+                    thumbCanvases = DOM.thumbnailGrid.querySelectorAll('canvas');
+                }
+                for (let i = 0; i < thumbCanvases.length; i++) {
+                    const blob = await new Promise(res => thumbCanvases[i].toBlob(res, 'image/png'));
+                    if (blob) zip.file(`Thumbnail-${i + 1}.png`, blob);
+                }
+
+                // --- Metadata ---
+                if (APP.seoData) {
+                    zip.file('Listing-Metadata.json', JSON.stringify(APP.seoData, null, 2));
+                    const txt = `TPT LISTING METADATA\n====================\n\nTitle: ${APP.seoData.title}\n\nDescription:\n${APP.seoData.description}\n\nKeywords: ${(APP.seoData.primaryKeywords || []).join(', ')}\nGrades: ${APP.seoData.grades}\nSubject: ${APP.seoData.subject}\nPrice: ${APP.seoData.price}\nStandards: ${APP.seoData.standards}\nTags: ${(APP.seoData.tags || []).join(', ')}`;
+                    zip.file('Listing-Metadata.txt', txt);
+                }
+
+                // --- Credits ---
+                const credits = `CREDITS & TERMS OF USE\n======================\n\n© ${new Date().getFullYear()} ${storeName}. All rights reserved.\n\nTERMS OF USE:\n- Licensed for original purchaser only\n- Single classroom use only\n- No redistribution or resale\n- No uploading to public servers or shared drives\n- No modifying and reselling\n\nThank you for your purchase! If you have any questions, please contact me through my TPT store.`;
+                zip.file('Credits-and-Terms.txt', credits);
+
+                // --- Generate ZIP ---
+                DOM.loadingSub.textContent = 'Compressing files...';
+                const zipBlob = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+
+                downloadBlob(zipBlob, `${storeName.replace(/\s+/g, '_')}_${typeInfo.name.replace(/\s+/g, '_')}_TPT-Package.zip`);
+
+                hideLoading();
+                showToast('TPT Package exported!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast(`Export error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // ================================================
+        // UTILITY FUNCTIONS
+        // ================================================
+        function showLoading(text, sub) {
+            DOM.loadingText.textContent = text;
+            DOM.loadingSub.textContent = sub;
+            DOM.loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            DOM.loadingOverlay.style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            DOM.toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'toastIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // ================================================
+        // INIT
+        // ================================================
+        init();
+
+    </script>
+</body>
+
+</html>
