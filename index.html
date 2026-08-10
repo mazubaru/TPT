@@ -662,7 +662,7 @@
         }
 
         .ws-page-inner {
-            padding: 30px 36px 24px;
+            padding: 18px 20px 16px; /* more compact */
             height: 100%;
             display: flex;
             flex-direction: column;
@@ -708,9 +708,9 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 16px;
-            padding-bottom: 14px;
-            border-bottom: 2.5px dashed #DDD6FE;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px dashed #DDD6FE;
         }
 
         .ws-title-area {
@@ -852,7 +852,7 @@
         /* Math Problems Grid */
         .math-problems {
             display: grid;
-            gap: 16px;
+            gap: 8px; /* tighter spacing to fit more problems per page */
         }
 
         .math-problems.cols-2 {
@@ -870,11 +870,12 @@
         .math-problem {
             background: #FAFAFA;
             border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            padding: 18px 14px 14px;
+            border-radius: 6px;
+            padding: 10px 8px;
             text-align: center;
             font-family: var(--font-display);
             position: relative;
+            font-size: 13px;
         }
 
         .math-problem-num {
@@ -891,10 +892,10 @@
             flex-direction: column;
             align-items: flex-end;
             gap: 2px;
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 600;
             position: relative;
-            padding: 8px 16px;
+            padding: 6px 10px;
         }
 
         .math-problem-vertical .operand {
@@ -923,13 +924,13 @@
         }
 
         .math-problem-horizontal {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 600;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 12px;
+            padding: 8px;
         }
 
         .math-answer-blank {
@@ -1775,11 +1776,6 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Store Name</label>
-                    <input type="text" class="form-input" id="storeName" value="MathFun Academy"
-                        placeholder="Your TPT store name">
-                </div>
 
                 <div style="margin-top: 10px;">
                     <div class="form-checkbox">
@@ -2268,7 +2264,6 @@ Return ONLY valid JSON, no markdown.`
             pageCount: document.getElementById('pageCount'),
             paperSize: document.getElementById('paperSize'),
             worksheetTheme: document.getElementById('worksheetTheme'),
-            storeName: document.getElementById('storeName'),
             includeAnswerKey: document.getElementById('includeAnswerKey'),
             includeCover: document.getElementById('includeCover'),
             lowInk: document.getElementById('lowInk'),
@@ -2638,7 +2633,7 @@ Return ONLY valid JSON, no markdown.`
             container.innerHTML = '';
             const type = APP.selectedType;
             const theme = DOM.worksheetTheme.value;
-            const storeName = DOM.storeName.value || 'MathFun Academy';
+            // storeName removed per request; no store name stored or shown on pages
             const grade = DOM.gradeLevel.value;
             const typeInfo = getTypeInfo(type);
 
@@ -2658,7 +2653,7 @@ Return ONLY valid JSON, no markdown.`
                         ${APP.worksheets.length} Practice Pages + Answer Keys
                     </p>
                     <div style="width:100px; height:3px; background:#7C3AED; margin:0 auto 40px; border-radius:2px;"></div>
-                    <p style="font-size:12px; color:#9CA3AF;">© ${new Date().getFullYear()} ${storeName}. All rights reserved.</p>
+                    <p style="font-size:12px; color:#9CA3AF;">© ${new Date().getFullYear()}. All rights reserved.</p>
                     <p style="font-size:11px; color:#D1D5DB; margin-top:8px;">For single classroom use only. Do not redistribute.</p>
                 </div>
             `;
@@ -2685,8 +2680,8 @@ Return ONLY valid JSON, no markdown.`
 
                 // Calculate available content height per page
                 const pageH = getPageHeight();
-                const headerH = 130; // header + directions approximate height
-                const footerH = 40;
+                const headerH = 100; // reduced header height to allow more content per page
+                const footerH = 36;
                 const contentMaxH = pageH - headerH - footerH - 20; // 20px safety
 
                 // Split items into page-groups
@@ -2732,7 +2727,7 @@ Return ONLY valid JSON, no markdown.`
                     ${pgIdx === 0 ? `<div class="ws-directions"><strong>Directions:</strong> ${getDirections(type)}</div>` : ''}
                     <div class="ws-content"></div>
                     <div class="ws-footer">
-                        <span>© ${new Date().getFullYear()} ${storeName}</span>
+                        <span>© ${new Date().getFullYear()}</span>
                         <span>Page ${globalPageNum}</span>
                     </div>
                     `;
@@ -2764,7 +2759,7 @@ Return ONLY valid JSON, no markdown.`
                     ${APP.worksheets.map((ws, idx) => renderAnswerKey(ws, idx, type)).join('')}
                 </div>
                 <div class="ws-footer">
-                    <span>© ${new Date().getFullYear()} ${storeName}</span>
+                <span>© ${new Date().getFullYear()}</span>
                     <span>Answer Key</span>
                 </div>
             `;
@@ -2875,7 +2870,8 @@ Return ONLY valid JSON, no markdown.`
         function renderMathProblems(el, ws) {
             const problems = ws.problems || [];
             const format = ws.format || 'vertical';
-            const cols = problems.length > 12 ? 4 : problems.length > 8 ? 3 : 2;
+            // More compact column decisions to fit more problems per A4 page
+            const cols = problems.length > 18 ? 4 : problems.length > 9 ? 3 : 2;
 
             let html = `<div class="math-problems cols-${cols}">`;
             problems.forEach((p, i) => {
@@ -3883,7 +3879,7 @@ Return ONLY valid JSON, no markdown.`;
             const typeInfo = getTypeInfo(type);
             const grade = DOM.gradeLevel.value;
             const count = APP.worksheets.length;
-            const storeName = DOM.storeName.value || 'MathFun Academy';
+            // storeName removed per request; thumbnails and pages will not include store name
             const theme = DOM.worksheetTheme.value;
 
             const themeColors = {
@@ -3943,7 +3939,7 @@ Return ONLY valid JSON, no markdown.`;
                         // Store name
                         ctx.fillStyle = 'rgba(255,255,255,0.9)';
                         ctx.font = `${s * 0.025}px Inter, sans-serif`;
-                        ctx.fillText(`© ${storeName}`, s / 2, s * 0.92);
+                        ctx.fillText(`© ${new Date().getFullYear()}`, s / 2, s * 0.92);
                     }
                 },
                 {
@@ -3985,7 +3981,7 @@ Return ONLY valid JSON, no markdown.`;
                         ctx.textAlign = 'center';
                         ctx.fillStyle = tc.primary;
                         ctx.font = `bold ${s * 0.025}px Fredoka, sans-serif`;
-                        ctx.fillText(`${storeName}`, s / 2, s * 0.92);
+                        ctx.fillText(`${new Date().getFullYear()}`, s / 2, s * 0.92);
                     }
                 },
                 {
@@ -4076,7 +4072,7 @@ Return ONLY valid JSON, no markdown.`;
                         ctx.fillText('Perfect for: Morning Work • Centers • Early Finishers • Homework', s / 2, s * 0.88);
                         ctx.fillStyle = tc.primary;
                         ctx.font = `bold ${s * 0.025}px Fredoka, sans-serif`;
-                        ctx.fillText(storeName, s / 2, s * 0.94);
+                        ctx.fillText(`${new Date().getFullYear()}`, s / 2, s * 0.94);
                     }
                 }
             ];
@@ -4198,8 +4194,9 @@ Return ONLY valid JSON, no markdown.`;
                     clone.style.height = pageEl.offsetHeight + 'px';
                     document.body.appendChild(clone);
 
-                    // Allow a short time for fonts/images to render in the cloned node
-                    await new Promise(r => setTimeout(r, 150));
+                    // Ensure webfonts are loaded and allow a short time for fonts/images to render in the cloned node
+                    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch(e) {}
+                    await new Promise(r => setTimeout(r, 300));
 
                     const canvas = await html2canvas(clone, {
                         scale: 2,
@@ -4226,9 +4223,8 @@ Return ONLY valid JSON, no markdown.`;
                     await new Promise(r => setTimeout(r, 50));
                 }
 
-                const storeName = DOM.storeName.value || 'MathFun Academy';
                 const typeInfo = getTypeInfo(APP.selectedType);
-                const filename = `${storeName.replace(/\s+/g, '_')}_${typeInfo.name.replace(/\s+/g, '_')}_Grade${DOM.gradeLevel.value}_${exportType}.pdf`;
+                const filename = `${typeInfo.name.replace(/\s+/g, '_')}_Grade${DOM.gradeLevel.value}_${exportType}.pdf`;
 
                 pdf.save(filename);
 
@@ -4257,14 +4253,34 @@ Return ONLY valid JSON, no markdown.`;
 
                 for (let i = 0; i < pages.length; i++) {
                     DOM.loadingSub.textContent = `Rendering page ${i + 1} of ${pages.length}...`;
-                    const canvas = await html2canvas(pages[i], {
-                        scale: 3, // High resolution
+                    // Render a visible clone to avoid blank/uncaptured elements
+                    const pageEl = pages[i];
+                    const clone = pageEl.cloneNode(true);
+                    clone.style.position = 'fixed';
+                    clone.style.left = '10px';
+                    clone.style.top = '10px';
+                    clone.style.zIndex = '99999';
+                    clone.style.transform = 'scale(1)';
+                    clone.style.background = 'white';
+                    clone.style.boxShadow = 'none';
+                    clone.style.margin = '0';
+                    clone.style.pointerEvents = 'none';
+                    clone.style.width = pageEl.offsetWidth + 'px';
+                    clone.style.height = pageEl.offsetHeight + 'px';
+                    document.body.appendChild(clone);
+
+                    await new Promise(r => setTimeout(r, 200));
+
+                    const canvas = await html2canvas(clone, {
+                        scale: 4, // higher resolution PNG
                         useCORS: true,
                         logging: false,
                         backgroundColor: '#ffffff',
-                        width: pages[i].offsetWidth,
-                        height: pages[i].offsetHeight
+                        width: pageEl.offsetWidth,
+                        height: pageEl.offsetHeight
                     });
+
+                    try { document.body.removeChild(clone); } catch (e) {}
 
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                     zip.file(`Page-${i + 1}.png`, blob);
@@ -4274,8 +4290,8 @@ Return ONLY valid JSON, no markdown.`;
                 }
 
                 const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-                const storeName = DOM.storeName.value || 'MathFun Academy';
-                downloadBlob(zipBlob, `${storeName.replace(/\s+/g, '_')}_Images.zip`);
+                // storeName removed — use generic filename
+                downloadBlob(zipBlob, `Images.zip`);
 
                 hideLoading();
                 showToast('Images exported as ZIP!', 'success');
@@ -4296,7 +4312,7 @@ Return ONLY valid JSON, no markdown.`;
 
             try {
                 const zip = new JSZip();
-                const storeName = DOM.storeName.value || 'MathFun Academy';
+                // storeName removed per request; filenames will be generic/type-based
                 const typeInfo = getTypeInfo(APP.selectedType);
                 const { jsPDF } = window.jspdf;
                 const paperSize = DOM.paperSize.value;
@@ -4312,7 +4328,24 @@ Return ONLY valid JSON, no markdown.`;
 
                 for (let i = 0; i < pages.length; i++) {
                     DOM.loadingSub.textContent = `Rendering page ${i + 1}/${pages.length}...`;
-                    const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, logging: false, backgroundColor: '#fff', width: pages[i].offsetWidth, height: pages[i].offsetHeight });
+                    const pageEl = pages[i];
+                    const clone = pageEl.cloneNode(true);
+                    clone.style.position = 'fixed';
+                    clone.style.left = '10px';
+                    clone.style.top = '10px';
+                    clone.style.zIndex = '99999';
+                    clone.style.transform = 'scale(1)';
+                    clone.style.background = 'white';
+                    clone.style.boxShadow = 'none';
+                    clone.style.margin = '0';
+                    clone.style.pointerEvents = 'none';
+                    clone.style.width = pageEl.offsetWidth + 'px';
+                    clone.style.height = pageEl.offsetHeight + 'px';
+                    document.body.appendChild(clone);
+                    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch(e) {}
+                    await new Promise(r => setTimeout(r, 250));
+                    const canvas = await html2canvas(clone, { scale: 2, useCORS: true, logging: false, backgroundColor: '#fff', width: pageEl.offsetWidth, height: pageEl.offsetHeight });
+                    try { document.body.removeChild(clone); } catch(e) {}
                     if (!first) wsPdf.addPage();
                     wsPdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pw, ph);
                     first = false;
@@ -4341,7 +4374,7 @@ Return ONLY valid JSON, no markdown.`;
                 }
 
                 // --- Credits ---
-                const credits = `CREDITS & TERMS OF USE\n======================\n\n© ${new Date().getFullYear()} ${storeName}. All rights reserved.\n\nTERMS OF USE:\n- Licensed for original purchaser only\n- Single classroom use only\n- No redistribution or resale\n- No uploading to public servers or shared drives\n- No modifying and reselling\n\nThank you for your purchase! If you have any questions, please contact me through my TPT store.`;
+                const credits = `CREDITS & TERMS OF USE\n======================\n\n© ${new Date().getFullYear()}. All rights reserved.\n\nTERMS OF USE:\n- Licensed for original purchaser only\n- Single classroom use only\n- No redistribution or resale\n- No uploading to public servers or shared drives\n- No modifying and reselling\n\nThank you for your purchase!`;
                 zip.file('Credits-and-Terms.txt', credits);
 
                 // --- Generate ZIP ---
@@ -4352,7 +4385,7 @@ Return ONLY valid JSON, no markdown.`;
                     compressionOptions: { level: 6 }
                 });
 
-                downloadBlob(zipBlob, `${storeName.replace(/\s+/g, '_')}_${typeInfo.name.replace(/\s+/g, '_')}_TPT-Package.zip`);
+                downloadBlob(zipBlob, `${typeInfo.name.replace(/\s+/g, '_')}_TPT-Package.zip`);
 
                 hideLoading();
                 showToast('TPT Package exported!', 'success');
